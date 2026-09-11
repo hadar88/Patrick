@@ -1,0 +1,47 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+
+# Packaging and build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Test and coverage output
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Type checker output
+.pyre/
+.dmypy.json
+dmypy.json
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
