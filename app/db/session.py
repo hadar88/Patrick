@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
@@ -11,13 +11,23 @@ from app.db.base import Base
 @lru_cache
 def get_engine() -> Engine:
     engine_options = {"pool_pre_ping": True}
-    if get_settings().database_url.startswith("sqlite"):
+    is_sqlite = get_settings().database_url.startswith("sqlite")
+    if is_sqlite:
         engine_options["connect_args"] = {"check_same_thread": False}
 
-    return create_engine(
+    engine = create_engine(
         get_settings().database_url,
         **engine_options,
     )
+    if is_sqlite:
+
+        @event.listens_for(engine, "connect")
+        def enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    return engine
 
 
 @lru_cache

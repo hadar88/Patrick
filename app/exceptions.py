@@ -1,5 +1,6 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 
 class ApplicationError(Exception):
@@ -26,3 +27,12 @@ async def application_error_handler(
     request: Request, error: ApplicationError
 ) -> JSONResponse:
     return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
+
+
+async def integrity_error_handler(
+    request: Request, error: IntegrityError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
+        content={"detail": "The requested change conflicts with existing data"},
+    )

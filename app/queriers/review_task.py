@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db.dals import ReviewTaskDAL
 from app.db.models import ReviewTask
-from app.exceptions import ResourceNotFoundError
+from app.exceptions import ResourceConflictError, ResourceNotFoundError
 
 
 class ReviewTaskQuerier:
@@ -18,6 +18,10 @@ class ReviewTaskQuerier:
         return self.dal.list_by_author(author_user_id)
 
     def create(self, values: dict[str, object]) -> ReviewTask:
+        if self.dal.get_by_gitlab_mr_id(
+            values["repo_gitlab_id"], values["gitlab_mr_id"]
+        ):
+            raise ResourceConflictError("Review task already exists")
         task = self.dal.create(values)
         self.session.commit()
         return task

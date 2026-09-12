@@ -5,7 +5,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str = Field(validation_alias="DATABASE_URL")
+    database_url: str = Field(
+        default="sqlite:///./dev.db",
+        validation_alias="DATABASE_URL",
+    )
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ],
+        validation_alias="CORS_ORIGINS",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

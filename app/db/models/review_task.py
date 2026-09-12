@@ -1,6 +1,14 @@
 import uuid
 
-from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, Uuid
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -8,6 +16,13 @@ from app.db.base import Base
 
 class ReviewTask(Base):
     __tablename__ = "review_tasks"
+    __table_args__ = (
+        UniqueConstraint(
+            "repo_gitlab_id",
+            "gitlab_mr_id",
+            name="uq_review_tasks_repo_mr",
+        ),
+    )
 
     task_id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     author_user_id = Column(
