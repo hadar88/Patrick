@@ -1,7 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 from app.db.dals.base import BaseDAL
-from app.db.models import ReviewTask
+from app.db.models import ReviewTask, TaskReviewer
 
 
 class ReviewTaskDAL(BaseDAL[ReviewTask]):
@@ -21,3 +21,25 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
             ReviewTask.author_user_id == author_user_id
         )
         return list(self.session.scalars(statement).all())
+
+    def list_by_reviewer(self, assigned_user_id: object) -> list[ReviewTask]:
+        statement = select(ReviewTask).where(
+            exists().where(
+                TaskReviewer.task_id == ReviewTask.task_id,
+                TaskReviewer.assigned_user_id == assigned_user_id,
+            )
+        )
+        return list(self.session.scalars(statement).all())
+
+    def is_visible_to_user(self, task_id: object, user_id: object) -> bool:
+        statement = select(
+            exists().where(
+                ReviewTask.task_id == task_id,
+                ReviewTask.author_user_id == user_id,
+            )
+            | exists().where(
+                TaskReviewer.task_id == task_id,
+                TaskReviewer.assigned_user_id == user_id,
+            )
+        )
+        return bool(self.session.scalar(statement))

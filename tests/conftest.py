@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.base import Base
 from app.db.models import ReviewTask, TaskReviewer, User
 from app.db.session import get_db
+from app.endpoints.auth import get_current_user
 from app.main import app
 
 
@@ -38,6 +39,14 @@ def client(session: Session) -> Iterator[TestClient]:
         yield TestClient(app)
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def login_as(client):
+    def login(user: User) -> None:
+        app.dependency_overrides[get_current_user] = lambda: user
+
+    return login
 
 
 @pytest.fixture

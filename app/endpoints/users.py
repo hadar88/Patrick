@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.db.models import User
+from app.endpoints.auth import get_current_user
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.queriers import UserQuerier
 
@@ -11,7 +13,10 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("", response_model=list[UserResponse])
-def list_users(db: Session = Depends(get_db)) -> list[UserResponse]:
+def list_users(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+) -> list[UserResponse]:
     return UserQuerier(db).list()
 
 

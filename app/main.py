@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
@@ -12,11 +13,19 @@ from app.exceptions import (
 )
 
 
+settings = get_settings()
+
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    https_only=settings.environment.lower() == "production",
+    same_site="lax",
+)
+app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().cors_origins,
-    allow_credentials=False,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Accept", "Authorization", "Content-Type"],
 )
