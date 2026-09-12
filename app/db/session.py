@@ -11,12 +11,13 @@ from app.db.base import Base
 @lru_cache
 def get_engine() -> Engine:
     engine_options = {"pool_pre_ping": True}
-    is_sqlite = get_settings().database_url.startswith("sqlite")
+    database_url = get_settings().get_database_url()
+    is_sqlite = database_url.startswith("sqlite")
     if is_sqlite:
         engine_options["connect_args"] = {"check_same_thread": False}
 
     engine = create_engine(
-        get_settings().database_url,
+        database_url,
         **engine_options,
     )
     if is_sqlite:
