@@ -9,4 +9,13 @@ service:
   port: 80
   targetPort: 8000
 env: []
-envFrom: []
+
+envFrom:
+  - secretRef:
+      name: patrick-gitlab-oauth
+
+gitlab:
+  clientId: ""
+  clientSecret: ""
+  redirectUri: "http://127.0.0.1:8000/api/auth/gitlab/callback"
+  sessionSecret: ""
