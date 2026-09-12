@@ -14,6 +14,9 @@ ENV/
 .env.*
 !.env.example
 
+# Local database
+dev.db
+
 # Packaging and build artifacts
 build/
 dist/
