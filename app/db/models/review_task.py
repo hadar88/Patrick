@@ -35,6 +35,7 @@ class ReviewTask(Base):
     repo_web_url = Column(Text, nullable=False)
     gitlab_mr_id = Column(BigInteger, nullable=False)
     mr_title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
     mr_state = Column(String(50), server_default="opened")
     priority = Column(String(50), server_default="NORMAL")
     status = Column(String(50), server_default="WAITING_FOR_REVIEW")

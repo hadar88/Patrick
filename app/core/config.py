@@ -6,6 +6,7 @@ from sqlalchemy.engine import URL
 
 
 class Settings(BaseSettings):
+    environment: str = Field(default="development", validation_alias="APP_ENV")
     database_url: str | None = Field(
         default=None,
         validation_alias="DATABASE_URL",
@@ -21,6 +22,26 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(
         default_factory=list,
         validation_alias="CORS_ORIGINS",
+    )
+    gitlab_url: str = Field(
+        default="https://gitlab.com",
+        validation_alias="GITLAB_URL",
+    )
+    gitlab_client_id: str | None = Field(
+        default=None,
+        validation_alias="GITLAB_CLIENT_ID",
+    )
+    gitlab_client_secret: str | None = Field(
+        default=None,
+        validation_alias="GITLAB_CLIENT_SECRET",
+    )
+    gitlab_redirect_uri: str = Field(
+        default="http://localhost:8000/api/auth/gitlab/callback",
+        validation_alias="GITLAB_REDIRECT_URI",
+    )
+    session_secret: str = Field(
+        default="change-this-session-secret",
+        validation_alias="SESSION_SECRET",
     )
 
     model_config = SettingsConfigDict(

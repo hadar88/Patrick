@@ -20,3 +20,9 @@ class User(Base):
     assigned_reviews = relationship(
         "TaskReviewer", back_populates="assigned_user", cascade="all, delete-orphan"
     )
+    gitlab_connection = relationship(
+        "GitLabConnection",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

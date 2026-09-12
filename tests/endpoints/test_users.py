@@ -1,8 +1,20 @@
-def test_list_users_is_empty(client):
+def test_list_users_requires_authentication(client):
+    response = client.get("/api/users")
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "GitLab authentication required"}
+
+
+def test_list_users_returns_logged_in_users(
+    client, user_factory, login_as
+):
+    user = user_factory()
+    login_as(user)
+
     response = client.get("/api/users")
 
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json()[0]["user_id"] == str(user.user_id)
 
 
 def test_user_crud_flow(client):
