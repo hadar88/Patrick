@@ -1,9 +1,18 @@
 import uuid
+import enum
 
-from sqlalchemy import Column, ForeignKey, String, UniqueConstraint, Uuid
+from sqlalchemy import Column, ForeignKey, String, UniqueConstraint, Uuid, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
+
+
+class ReviewStatus(str, enum.Enum):
+    WAITING = "waiting"
+    REVIEW = "review"
+    CHANGES_NEEDED = "changes_needed"
+    APPROVED = "approved"
+    CLOSED = "closed"
 
 
 class TaskReviewer(Base):
@@ -29,7 +38,11 @@ class TaskReviewer(Base):
         ForeignKey("users.user_id", name="fk_reviewers_user"),
         nullable=False,
     )
-    status = Column(String(50), server_default="WAITING_FOR_REVIEW")
+    status = Column(
+        SQLAlchemyEnum(ReviewStatus, name="review_status_enum"), 
+        server_default=ReviewStatus.WAITING.value,
+        nullable=False
+    )
     source = Column(String(50), server_default="MANUAL")
 
     task = relationship("ReviewTask", back_populates="reviewers")

@@ -26,3 +26,8 @@ class TaskReviewerResponse(TaskReviewerCreate):
     model_config = ConfigDict(from_attributes=True)
 
     reviewer_entry_id: UUID
+
+
+class StatusCountResponse(BaseModel):
+    status: str
+    count: int

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import BigInteger, Column, String, Uuid
+from sqlalchemy import BigInteger, Boolean, Column, String, Uuid
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -13,6 +13,7 @@ class User(Base):
     gitlab_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String(255), nullable=False)
     display_name = Column(String(255), nullable=True)
+    is_admin = Column(Boolean, nullable=False, default=False, server_default="false")
 
     authored_tasks = relationship(
         "ReviewTask", back_populates="author", cascade="all, delete-orphan"

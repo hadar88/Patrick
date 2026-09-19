@@ -50,3 +50,37 @@ class TaskReviewerQuerier:
         reviewer = self.get(reviewer_entry_id)
         self.dal.delete(reviewer)
         self.session.commit()
+
+    def count_status_as_reviewer(self, user_id: UUID) -> list[dict[str, object]]:
+        counts = {
+            "WAITING_FOR_REVIEW": 0, 
+            "REVIEW": 0, 
+            "CHANGES_NEEDED": 0, 
+            "APPROVED": 0, 
+            "CLOSED": 0
+        }
+        
+        results = self.dal.count_status_by_reviewer(user_id)
+        
+        for status, count in results:
+            if status in counts:
+                counts[status] = count
+
+        return [{"status": status, "count": count} for status, count in counts.items()]
+
+    def count_status_as_assignee(self, user_id: UUID) -> list[dict[str, object]]:
+        counts = {
+            "WAITING_FOR_REVIEW": 0, 
+            "REVIEW": 0, 
+            "CHANGES_NEEDED": 0, 
+            "APPROVED": 0, 
+            "CLOSED": 0
+        }
+        
+        results = self.dal.count_status_by_assignee(user_id)
+        
+        for status, count in results:
+            if status in counts:
+                counts[status] = count
+
+        return [{"status": status, "count": count} for status, count in counts.items()]

@@ -1,7 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.dals.base import BaseDAL
-from app.db.models import TaskReviewer
+from app.db.models import ReviewTask, TaskReviewer
 
 
 class TaskReviewerDAL(BaseDAL[TaskReviewer]):
@@ -25,3 +25,20 @@ class TaskReviewerDAL(BaseDAL[TaskReviewer]):
             TaskReviewer.assigned_user_id == assigned_user_id
         )
         return list(self.session.scalars(statement).all())
+
+    def count_status_by_reviewer(self, assigned_user_id: object) -> list[tuple[str, int]]:
+        statement = (
+            select(TaskReviewer.status, func.count(TaskReviewer.reviewer_entry_id))
+            .where(TaskReviewer.assigned_user_id == assigned_user_id)
+            .group_by(TaskReviewer.status)
+        )
+        return list(self.session.execute(statement).all())
+
+    def count_status_by_assignee(self, assignee_id: object) -> list[tuple[str, int]]:
+        statement = (
+            select(TaskReviewer.status, func.count(TaskReviewer.reviewer_entry_id))
+            .join(ReviewTask, TaskReviewer.task_id == ReviewTask.task_id)
+            .where(ReviewTask.author_user_id == assignee_id)  # Note: verify this column name in your ReviewTask model
+            .group_by(TaskReviewer.status)
+        )
+        return list(self.session.execute(statement).all())

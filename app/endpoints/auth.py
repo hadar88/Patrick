@@ -2,15 +2,24 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.models import GitLabConnection, User
 from app.db.session import get_db
 from app.integrations.gitlab import GitLabClient, GitLabError
 
+settings = get_settings()
+
+
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(request: Request) -> None:
+    request.session.clear()
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -91,6 +100,9 @@ def gitlab_callback(
         user.username = str(gitlab_user.get("username", user.username))
         user.display_name = gitlab_user.get("name", user.display_name)
 
+    if settings.admin_gitlab_id is not None and gitlab_id == settings.admin_gitlab_id:
+        user.is_admin = True
+
     expires_in = token.get("expires_in")
     expires_at = None
     if isinstance(expires_in, (int, float)):
@@ -102,4 +114,4 @@ def gitlab_callback(
     db.add(connection)
     db.commit()
     request.session["user_id"] = str(user.user_id)
-    return RedirectResponse("/")
+    return RedirectResponse(f"{settings.frontend_url}/page")

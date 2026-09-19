@@ -25,3 +25,4 @@ class UserResponse(UserCreate):
     model_config = ConfigDict(from_attributes=True)
 
     user_id: UUID
+    is_admin: bool
