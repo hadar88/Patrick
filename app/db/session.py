@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine, event, inspect, text
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
@@ -59,25 +59,6 @@ def initialize_database() -> None:
 
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
-    with engine.begin() as connection:
-        columns = {
-            column["name"]
-            for column in inspect(connection).get_columns("review_tasks")
-        }
-        if "description" not in columns:
-            connection.execute(
-                text("ALTER TABLE review_tasks ADD COLUMN description TEXT")
-            )
-        user_columns = {
-            column["name"] for column in inspect(connection).get_columns("users")
-        }
-        if "is_admin" not in user_columns:
-            connection.execute(
-                text(
-                    "ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE"
-                )
-            )
-
 
 def close_database_connection() -> None:
     get_engine().dispose()

@@ -13,7 +13,6 @@ from app.integrations.gitlab import GitLabClient, GitLabError
 
 settings = get_settings()
 
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
