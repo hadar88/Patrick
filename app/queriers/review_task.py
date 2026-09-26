@@ -38,7 +38,7 @@ class ReviewTaskQuerier:
         merge_request_iid: int,
         gitlab_data: dict[str, object],
         priority: str = "NORMAL",
-        jira_ticket_key: str | None = None,
+        jira_ticket_url: str | None = None,
         description: str | None = None,
         reviewer_user_ids: list[UUID] | None = None,
         reviewer_gitlab_ids: list[int] | None = None,
@@ -67,7 +67,7 @@ class ReviewTaskQuerier:
             description=description,
             mr_state=str(gitlab_data.get("state", "opened")),
             priority=priority,
-            jira_ticket_key=jira_ticket_key,
+            jira_ticket_url=jira_ticket_url,
         )
         self.session.add(task)
         manual_reviewer_ids = reviewer_user_ids or []

@@ -17,7 +17,7 @@ class ReviewTaskCreate(BaseModel):
     mr_state: str = "opened"
     priority: str = "NORMAL"
     status: str = "WAITING_FOR_REVIEW"
-    jira_ticket_key: str | None = None
+    jira_ticket_url: str | None = None
 
 
 class ReviewTaskFromGitLabCreate(BaseModel):
@@ -27,14 +27,14 @@ class ReviewTaskFromGitLabCreate(BaseModel):
     reviewer_user_ids: list[UUID] = Field(default_factory=list)
     reviewer_gitlab_ids: list[int] = Field(default_factory=list)
     priority: str = "NORMAL"
-    jira_ticket_key: str | None = None
+    jira_ticket_url: str | None = None
 
 
 class ReviewTaskUpdate(BaseModel):
     mr_state: str | None = None
     priority: str | None = None
     status: str | None = None
-    jira_ticket_key: str | None = None
+    jira_ticket_url: str | None = None
 
     @field_validator("mr_state", "priority", "status", mode="before")
     @classmethod

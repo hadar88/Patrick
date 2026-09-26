@@ -46,11 +46,11 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
 
     update_response = client.patch(
         f"/api/review-tasks/{task_id}",
-        json={"priority": "HIGH", "jira_ticket_key": "PAT-1"},
+        json={"priority": "HIGH", "jira_ticket_url": "https://jira.example/browse/PAT-1"},
     )
     assert update_response.status_code == 200
     assert update_response.json()["priority"] == "HIGH"
-    assert update_response.json()["jira_ticket_key"] == "PAT-1"
+    assert update_response.json()["jira_ticket_url"] == "https://jira.example/browse/PAT-1"
 
     delete_response = client.delete(f"/api/review-tasks/{task_id}")
     assert delete_response.status_code == 204

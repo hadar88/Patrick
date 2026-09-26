@@ -72,7 +72,7 @@ def create_review_task_from_gitlab(
         payload.merge_request_iid,
         merge_request,
         payload.priority,
-        payload.jira_ticket_key,
+        payload.jira_ticket_url,
         payload.description,
         payload.reviewer_user_ids,
         payload.reviewer_gitlab_ids,
