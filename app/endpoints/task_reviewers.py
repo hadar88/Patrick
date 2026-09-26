@@ -8,7 +8,6 @@ from app.schemas.task_reviewer import (
     TaskReviewerCreate,
     TaskReviewerResponse,
     TaskReviewerUpdate,
-    StatusCountResponse
 )
 from app.queriers import TaskReviewerQuerier
 
@@ -44,19 +43,19 @@ def create_task_reviewer(
     return TaskReviewerQuerier(db).create(payload.model_dump())
 
 
-@router.get("/status-counts/reviewer/{user_id}", response_model=list[StatusCountResponse])
+@router.get("/status-counts/reviewer/{user_id}", response_model=dict[str, int])
 def get_status_counts_as_reviewer(
     user_id: UUID,
     db: Session = Depends(get_db),
-) -> list[StatusCountResponse]:
+) -> dict[str, int]:
     return TaskReviewerQuerier(db).count_status_as_reviewer(user_id)
 
 
-@router.get("/status-counts/assignee/{user_id}", response_model=list[StatusCountResponse])
+@router.get("/status-counts/assignee/{user_id}", response_model=dict[str, int])
 def get_status_counts_as_assignee(
     user_id: UUID,
     db: Session = Depends(get_db),
-) -> list[StatusCountResponse]:
+) -> dict[str, int]:
     return TaskReviewerQuerier(db).count_status_as_assignee(user_id)
 
 

@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.db.models import GitLabConnection, User
 from app.db.session import get_db
 from app.integrations.gitlab import GitLabClient, GitLabError
+from app.schemas.user import UserResponse
 
 settings = get_settings()
 
@@ -21,35 +22,77 @@ def logout(request: Request) -> None:
     request.session.clear()
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
     user_id = request.session.get("user_id")
+
     if not user_id:
-        raise HTTPException(status_code=401, detail="GitLab authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="GitLab authentication required",
+        )
+
     try:
         user_uuid = UUID(str(user_id))
     except ValueError as error:
-        raise HTTPException(status_code=401, detail="Invalid session") from error
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session",
+        ) from error
+
     user = db.get(User, user_uuid)
+
     if user is None:
-        raise HTTPException(status_code=401, detail="GitLab authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="GitLab authentication required",
+        )
+
     return user
 
 
-@router.get("/gitlab/login")
+@router.get("/me", response_model=UserResponse)
+def current_user(
+    user: User = Depends(get_current_user),
+) -> User:
+    return user
+
+
+@router.get("/gitlab/login", include_in_schema=False)
 def gitlab_login(request: Request) -> RedirectResponse:
     state = secrets.token_urlsafe(32)
+
     pending_states = request.session.get("gitlab_oauth_states", [])
+
     if not isinstance(pending_states, list):
         pending_states = []
-    request.session["gitlab_oauth_states"] = [*pending_states[-4:], state]
+
+    request.session["gitlab_oauth_states"] = [
+        *pending_states[-4:],
+        state,
+    ]
+
     try:
-        url = GitLabClient.from_settings().oauth_authorization_url(state)
+        authorization_url = (
+            GitLabClient
+            .from_settings()
+            .oauth_authorization_url(state)
+        )
     except GitLabError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
-    return RedirectResponse(url)
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+        ) from error
+
+    return RedirectResponse(
+        url=authorization_url,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    )
 
 
-@router.get("/gitlab/callback")
+@router.get("/gitlab/callback", include_in_schema=False)
 def gitlab_callback(
     request: Request,
     code: str | None = None,
@@ -58,12 +101,15 @@ def gitlab_callback(
 ) -> RedirectResponse:
     if not code or not state:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Start GitLab login from /api/auth/gitlab/login",
         )
+
     pending_states = request.session.get("gitlab_oauth_states", [])
+
     if not isinstance(pending_states, list):
         pending_states = []
+
     matching_state = next(
         (
             pending_state
@@ -73,44 +119,97 @@ def gitlab_callback(
         ),
         None,
     )
+
     if matching_state is None:
-        raise HTTPException(status_code=400, detail="Invalid GitLab OAuth state")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid GitLab OAuth state",
+        )
+
     request.session["gitlab_oauth_states"] = [
-        pending_state for pending_state in pending_states if pending_state != matching_state
+        pending_state
+        for pending_state in pending_states
+        if pending_state != matching_state
     ]
+
     try:
         client = GitLabClient.from_settings()
+
         token = client.exchange_code(code)
-        gitlab_user = GitLabClient.from_token(str(token["access_token"])).current_user()
+
+        gitlab_user = (
+            GitLabClient
+            .from_token(str(token["access_token"]))
+            .current_user()
+        )
     except GitLabError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.detail,
+        ) from error
 
     gitlab_id = int(gitlab_user["id"])
-    user = db.query(User).filter(User.gitlab_id == gitlab_id).one_or_none()
+
+    user = (
+        db.query(User)
+        .filter(User.gitlab_id == gitlab_id)
+        .one_or_none()
+    )
+
     if user is None:
         user = User(
             gitlab_id=gitlab_id,
-            username=str(gitlab_user.get("username", gitlab_id)),
+            username=str(
+                gitlab_user.get("username", gitlab_id)
+            ),
             display_name=gitlab_user.get("name"),
         )
+
         db.add(user)
         db.flush()
     else:
-        user.username = str(gitlab_user.get("username", user.username))
-        user.display_name = gitlab_user.get("name", user.display_name)
+        user.username = str(
+            gitlab_user.get("username", user.username)
+        )
+        user.display_name = gitlab_user.get(
+            "name",
+            user.display_name,
+        )
 
-    if settings.admin_gitlab_id is not None and gitlab_id == settings.admin_gitlab_id:
+    if (
+        settings.admin_gitlab_id is not None
+        and gitlab_id == settings.admin_gitlab_id
+    ):
         user.is_admin = True
 
     expires_in = token.get("expires_in")
     expires_at = None
+
     if isinstance(expires_in, (int, float)):
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-    connection = user.gitlab_connection or GitLabConnection(user=user)
-    connection.access_token = str(token["access_token"])
-    connection.refresh_token = token.get("refresh_token")
+        expires_at = (
+            datetime.now(timezone.utc)
+            + timedelta(seconds=expires_in)
+        )
+
+    connection = (
+        user.gitlab_connection
+        or GitLabConnection(user=user)
+    )
+
+    connection.access_token = str(
+        token["access_token"]
+    )
+    connection.refresh_token = token.get(
+        "refresh_token"
+    )
     connection.expires_at = expires_at
+
     db.add(connection)
     db.commit()
+
     request.session["user_id"] = str(user.user_id)
-    return RedirectResponse(f"{settings.frontend_url}/page")
+
+    return RedirectResponse(
+        url=f"{settings.frontend_url.rstrip('/')}/page",
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    )

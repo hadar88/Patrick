@@ -8,11 +8,11 @@ from app.db.base import Base
 
 
 class ReviewStatus(str, enum.Enum):
-    WAITING = "waiting"
-    REVIEW = "review"
-    CHANGES_NEEDED = "changes_needed"
-    APPROVED = "approved"
-    CLOSED = "closed"
+    WAITING_FOR_REVIEW = "WAITING_FOR_REVIEW"
+    REVIEW = "REVIEW"
+    CHANGES_NEEDED = "CHANGES_NEEDED"
+    APPROVED = "APPROVED"
+    CLOSED = "CLOSED"
 
 
 class TaskReviewer(Base):
@@ -40,7 +40,7 @@ class TaskReviewer(Base):
     )
     status = Column(
         SQLAlchemyEnum(ReviewStatus, name="review_status_enum"), 
-        server_default=ReviewStatus.WAITING.value,
+        server_default=ReviewStatus.WAITING_FOR_REVIEW.value,
         nullable=False
     )
     source = Column(String(50), server_default="MANUAL")

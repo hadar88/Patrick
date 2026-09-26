@@ -24,6 +24,24 @@ def test_task_reviewer_crud_and_filter_routes(
     assert client.get(
         f"/api/task-reviewers/by-user/{assigned_user.user_id}"
     ).json() == [reviewer]
+    assert client.get(
+        f"/api/task-reviewers/status-counts/reviewer/{assigned_user.user_id}"
+    ).json() == {
+        "WAITING_FOR_REVIEW": 1,
+        "REVIEW": 0,
+        "CHANGES_NEEDED": 0,
+        "APPROVED": 0,
+        "CLOSED": 0,
+    }
+    assert client.get(
+        f"/api/task-reviewers/status-counts/assignee/{author.user_id}"
+    ).json() == {
+        "WAITING_FOR_REVIEW": 1,
+        "REVIEW": 0,
+        "CHANGES_NEEDED": 0,
+        "APPROVED": 0,
+        "CLOSED": 0,
+    }
 
     update_response = client.patch(
         f"/api/task-reviewers/{reviewer_id}",

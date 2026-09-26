@@ -1,7 +1,12 @@
 from collections.abc import Generator
 from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import (
+    Engine,
+    create_engine,
+    event,
+    text,
+)
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings

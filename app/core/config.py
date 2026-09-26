@@ -8,7 +8,7 @@ from sqlalchemy.engine import URL
 class Settings(BaseSettings):
     environment: str = Field(default="development", validation_alias="APP_ENV")
     frontend_url: str = Field(
-        default="http://localhost:6767",
+        default="http://localhost:4200",
         validation_alias="FRONTEND_URL",
     )
     database_url: str | None = Field(
