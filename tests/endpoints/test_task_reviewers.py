@@ -43,6 +43,15 @@ def test_task_reviewer_crud_and_filter_routes(
         "CLOSED": 0,
     }
 
+    task_without_reviewer = task_factory(
+        author=author,
+        repo_gitlab_id=11,
+        gitlab_mr_id=21,
+    )
+    assert client.get(
+        f"/api/task-reviewers/status-counts/assignee/{author.user_id}"
+    ).json()["WAITING_FOR_REVIEW"] == 2
+
     update_response = client.patch(
         f"/api/task-reviewers/{reviewer_id}",
         json={"status": "APPROVED", "source": "AUTOMATIC"},

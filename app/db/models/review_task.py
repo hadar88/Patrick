@@ -39,7 +39,7 @@ class ReviewTask(Base):
     mr_state = Column(String(50), server_default="opened")
     priority = Column(String(50), server_default="NORMAL")
     status = Column(String(50), server_default="WAITING_FOR_REVIEW")
-    jira_ticket_key = Column(String(100), nullable=True)
+    jira_ticket_url = Column(String(500), nullable=True)
 
     author = relationship("User", back_populates="authored_tasks")
     reviewers = relationship(

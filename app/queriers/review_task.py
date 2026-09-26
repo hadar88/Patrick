@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.db.dals import ReviewTaskDAL
-from app.db.models import ReviewTask, TaskReviewer, User
+from app.db.models import ReviewStatus, ReviewTask, TaskReviewer, User
 from app.exceptions import ResourceConflictError, ResourceNotFoundError
 
 
@@ -38,9 +38,10 @@ class ReviewTaskQuerier:
         merge_request_iid: int,
         gitlab_data: dict[str, object],
         priority: str = "NORMAL",
-        jira_ticket_key: str | None = None,
+        jira_ticket_url: str | None = None,
         description: str | None = None,
         reviewer_user_ids: list[UUID] | None = None,
+        reviewer_gitlab_ids: list[int] | None = None,
     ) -> ReviewTask:
         if self.dal.get_by_gitlab_mr_id(project_id, merge_request_iid):
             raise ResourceConflictError("Review task already exists")
@@ -66,28 +67,28 @@ class ReviewTaskQuerier:
             description=description,
             mr_state=str(gitlab_data.get("state", "opened")),
             priority=priority,
-            jira_ticket_key=jira_ticket_key,
+            jira_ticket_url=jira_ticket_url,
         )
         self.session.add(task)
         manual_reviewer_ids = reviewer_user_ids or []
         self._add_reviewers(task, manual_reviewer_ids, source="MANUAL")
-        reviewers = gitlab_data.get("reviewers")
-        for reviewer in reviewers if isinstance(reviewers, list) else []:
-            if not isinstance(reviewer, dict) or not isinstance(reviewer.get("id"), int):
-                continue
+        for reviewer_gitlab_id in reviewer_gitlab_ids or []:
             assigned_user = self.session.query(User).filter(
-                User.gitlab_id == reviewer["id"]
+                User.gitlab_id == reviewer_gitlab_id
             ).one_or_none()
             if (
                 assigned_user
-                and assigned_user.user_id != user.user_id
                 and not any(
                     reviewer_entry.assigned_user_id == assigned_user.user_id
                     for reviewer_entry in task.reviewers
                 )
             ):
                 task.reviewers.append(
-                    TaskReviewer(assigned_user=assigned_user, source="GITLAB")
+                    TaskReviewer(
+                        assigned_user=assigned_user,
+                        status=ReviewStatus.WAITING_FOR_REVIEW,
+                        source="GITLAB",
+                    )
                 )
         self.session.commit()
         return task
@@ -106,14 +107,17 @@ class ReviewTaskQuerier:
             assigned_user = self.session.get(User, reviewer_user_id)
             if (
                 assigned_user
-                and assigned_user.user_id != task.author_user_id
                 and not any(
                     reviewer_entry.assigned_user_id == assigned_user.user_id
                     for reviewer_entry in task.reviewers
                 )
             ):
                 task.reviewers.append(
-                    TaskReviewer(assigned_user=assigned_user, source=source)
+                    TaskReviewer(
+                        assigned_user=assigned_user,
+                        status=ReviewStatus.WAITING_FOR_REVIEW,
+                        source=source,
+                    )
                 )
 
     def ensure_visible(self, task_id: UUID, user_id: UUID) -> ReviewTask:

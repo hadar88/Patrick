@@ -14,6 +14,10 @@ class GitLabError(ApplicationError):
     status_code = 502
 
 
+class GitLabAuthenticationError(GitLabError):
+    status_code = 401
+
+
 @dataclass(frozen=True)
 class GitLabClient:
     base_url: str
@@ -90,7 +94,7 @@ class GitLabClient:
                 return json.load(response)
         except HTTPError as error:
             if error.code in (401, 403):
-                raise GitLabError("GitLab authentication failed") from error
+                raise GitLabAuthenticationError("GitLab authentication failed") from error
             if error.code == 404:
                 raise GitLabError("GitLab resource not found") from error
             raise GitLabError("GitLab API request failed") from error
@@ -107,12 +111,12 @@ class GitLabClient:
         return [
             {
                 "id": project["id"],
-                "path_with_namespace": project["path_with_namespace"],
+                "name": project["name"],
             }
             for project in result
             if isinstance(project, dict)
             and "id" in project
-            and "path_with_namespace" in project
+            and "name" in project
         ]
 
     def authored_merge_requests(self, project_id: int | None = None) -> list[dict[str, object]]:

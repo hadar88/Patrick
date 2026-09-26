@@ -70,7 +70,7 @@ def test_review_task_defaults_are_applied(session, task_factory):
     assert task.mr_state == "opened"
     assert task.priority == "NORMAL"
     assert task.status == "WAITING_FOR_REVIEW"
-    assert task.jira_ticket_key is None
+    assert task.jira_ticket_url is None
 
 
 def test_task_reviewer_dal_filters_by_task_and_user(

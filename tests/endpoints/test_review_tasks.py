@@ -1,4 +1,4 @@
-from app.db.models import GitLabConnection
+from app.db.models import GitLabConnection, TaskReviewer
 
 
 class FakeGitLabClient:
@@ -46,11 +46,11 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
 
     update_response = client.patch(
         f"/api/review-tasks/{task_id}",
-        json={"priority": "HIGH", "jira_ticket_key": "PAT-1"},
+        json={"priority": "HIGH", "jira_ticket_url": "https://jira.example/browse/PAT-1"},
     )
     assert update_response.status_code == 200
     assert update_response.json()["priority"] == "HIGH"
-    assert update_response.json()["jira_ticket_key"] == "PAT-1"
+    assert update_response.json()["jira_ticket_url"] == "https://jira.example/browse/PAT-1"
 
     delete_response = client.delete(f"/api/review-tasks/{task_id}")
     assert delete_response.status_code == 204
@@ -104,6 +104,7 @@ def test_create_review_task_from_gitlab(
     client, user_factory, login_as, session, monkeypatch
 ):
     author = user_factory()
+    reviewer = user_factory(gitlab_id=40094048, username="reviewer")
     login_as(author)
     session.add(GitLabConnection(user_id=author.user_id, access_token="token"))
     session.commit()
@@ -118,9 +119,44 @@ def test_create_review_task_from_gitlab(
             "project_id": 7,
             "merge_request_iid": 8,
             "description": "Please review the API changes",
+            "reviewer_gitlab_ids": [reviewer.gitlab_id],
         },
     )
 
     assert response.status_code == 201
     assert response.json()["description"] == "Please review the API changes"
     assert response.json()["author_user_id"] == str(author.user_id)
+    assert response.json()["reviewers"][0]["assigned_user_id"] == str(
+        reviewer.user_id
+    )
+    task_reviewers = session.query(TaskReviewer).all()
+    assert len(task_reviewers) == 1
+    assert task_reviewers[0].assigned_user_id == reviewer.user_id
+
+
+def test_create_review_task_from_gitlab_can_assign_author_as_reviewer(
+    client, user_factory, login_as, session, monkeypatch
+):
+    author = user_factory(gitlab_id=40094048, username="author")
+    login_as(author)
+    session.add(GitLabConnection(user_id=author.user_id, access_token="token"))
+    session.commit()
+    monkeypatch.setattr(
+        "app.endpoints.review_tasks.GitLabClient.from_token",
+        lambda token: FakeGitLabClient(),
+    )
+
+    response = client.post(
+        "/api/review-tasks/from-gitlab",
+        json={
+            "project_id": 9,
+            "merge_request_iid": 10,
+            "reviewer_gitlab_ids": [40094048],
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["reviewers"][0]["assigned_user_id"] == str(author.user_id)
+    assert client.get(
+        f"/api/task-reviewers/status-counts/reviewer/{author.user_id}"
+    ).json()["WAITING_FOR_REVIEW"] == 1

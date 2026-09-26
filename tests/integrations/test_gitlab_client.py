@@ -4,7 +4,11 @@ from urllib.error import HTTPError
 
 import pytest
 
-from app.integrations.gitlab import GitLabClient, GitLabError
+from app.integrations.gitlab import (
+    GitLabAuthenticationError,
+    GitLabClient,
+    GitLabError,
+)
 
 
 class FakeResponse:
@@ -39,13 +43,28 @@ def test_projects_request_uses_gitlab_v4_and_private_token(monkeypatch):
 
     result = GitLabClient("https://gitlab.example", "secret").projects("pat")
 
-    assert result == [{"id": 7, "path_with_namespace": "team/patrick"}]
+    assert result == [{"id": 7, "name": "patrick"}]
     request, timeout = requests[0]
     assert request.full_url == (
         "https://gitlab.example/api/v4/projects?membership=true&simple=true&search=pat"
     )
     assert request.get_header("Private-token") == "secret"
     assert timeout == 10
+
+
+def test_projects_request_uses_bearer_token(monkeypatch):
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append(request)
+        return FakeResponse([])
+
+    monkeypatch.setattr("app.integrations.gitlab.urlopen", fake_urlopen)
+
+    GitLabClient.from_token("secret").projects()
+
+    assert requests[0].get_header("Authorization") == "Bearer secret"
+    assert requests[0].get_header("Private-token") is None
 
 
 def test_authored_merge_requests_uses_created_by_me_scope(monkeypatch):
@@ -130,5 +149,5 @@ def test_unauthorized_gitlab_response_is_mapped_to_application_error(monkeypatch
 
     monkeypatch.setattr("app.integrations.gitlab.urlopen", fake_urlopen)
 
-    with pytest.raises(GitLabError, match="GitLab authentication failed"):
+    with pytest.raises(GitLabAuthenticationError, match="GitLab authentication failed"):
         GitLabClient("https://gitlab.example", "secret").projects()
