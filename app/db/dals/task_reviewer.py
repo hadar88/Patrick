@@ -36,9 +36,8 @@ class TaskReviewerDAL(BaseDAL[TaskReviewer]):
 
     def count_status_by_assignee(self, assignee_id: object) -> list[tuple[str, int]]:
         statement = (
-            select(TaskReviewer.status, func.count(TaskReviewer.reviewer_entry_id))
-            .join(ReviewTask, TaskReviewer.task_id == ReviewTask.task_id)
+            select(ReviewTask.status, func.count(ReviewTask.task_id))
             .where(ReviewTask.author_user_id == assignee_id)
-            .group_by(TaskReviewer.status)
+            .group_by(ReviewTask.status)
         )
         return list(self.session.execute(statement).all())

@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.db.dals import TaskReviewerDAL
-from app.db.models import TaskReviewer
+from app.db.models import ReviewStatus, TaskReviewer
 from app.exceptions import ResourceConflictError, ResourceNotFoundError
 
 
@@ -24,6 +24,7 @@ class TaskReviewerQuerier:
         return self.dal.list_by_user(user_id)
 
     def create(self, values: dict[str, object]) -> TaskReviewer:
+        values.setdefault("status", ReviewStatus.WAITING_FOR_REVIEW)
         if self.dal.get_for_task_and_user(
             values["task_id"], values["assigned_user_id"]
         ):
@@ -63,6 +64,7 @@ class TaskReviewerQuerier:
         results = self.dal.count_status_by_reviewer(user_id)
         
         for status, count in results:
+            status = status.value if hasattr(status, "value") else status
             if status in counts:
                 counts[status] = count
 
@@ -80,6 +82,7 @@ class TaskReviewerQuerier:
         results = self.dal.count_status_by_assignee(user_id)
         
         for status, count in results:
+            status = status.value if hasattr(status, "value") else status
             if status in counts:
                 counts[status] = count
 

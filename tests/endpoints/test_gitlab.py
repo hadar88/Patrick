@@ -3,7 +3,7 @@ from app.db.models import GitLabConnection
 
 class FakeGitLabClient:
     def projects(self, search=None):
-        return [{"id": 7, "path_with_namespace": search or "team/patrick"}]
+        return [{"id": 7, "name": search or "patrick"}]
 
     def authored_merge_requests(self, project_id=None):
         return [{
@@ -51,7 +51,7 @@ def test_gitlab_lookup_routes_return_data_for_task_creation(
     detail_response = client.get("/api/gitlab/projects/7/merge-requests/8")
 
     assert projects_response.status_code == 200
-    assert projects_response.json() == [{"id": 7, "path_with_namespace": "pat"}]
+    assert projects_response.json() == [{"id": 7, "name": "pat"}]
     assert tokens[0] == "token"
     assert merge_requests_response.status_code == 200
     assert merge_requests_response.json()[0]["iid"] == 8
