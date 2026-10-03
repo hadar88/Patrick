@@ -64,3 +64,47 @@ def test_gitlab_lookup_routes_return_data_for_task_creation(
         "title": "Improve review flow",
         "state": "opened",
     }
+
+
+def test_gitlab_projects_are_scoped_to_the_authenticated_user(
+    client, monkeypatch, user_factory, session, login_as
+):
+    first_user = user_factory(gitlab_id=1, username="alice")
+    second_user = user_factory(gitlab_id=2, username="bob")
+    session.add_all(
+        [
+            GitLabConnection(user_id=first_user.user_id, access_token="alice-token"),
+            GitLabConnection(user_id=second_user.user_id, access_token="bob-token"),
+        ]
+    )
+    session.flush()
+
+    class UserGitLabClient(FakeGitLabClient):
+        def __init__(self, token):
+            self.token = token
+
+        def projects(self, search=None):
+            return [{"id": self.token, "name": search or self.token}]
+
+    tokens = []
+
+    def fake_from_token(token):
+        tokens.append(token)
+        return UserGitLabClient(token)
+
+    monkeypatch.setattr(
+        "app.endpoints.gitlab.GitLabClient.from_token",
+        fake_from_token,
+    )
+
+    login_as(first_user)
+    first_response = client.get("/api/gitlab/projects")
+
+    login_as(second_user)
+    second_response = client.get("/api/gitlab/projects")
+
+    assert first_response.status_code == 200
+    assert first_response.json() == [{"id": "alice-token", "name": "alice-token"}]
+    assert second_response.status_code == 200
+    assert second_response.json() == [{"id": "bob-token", "name": "bob-token"}]
+    assert tokens == ["alice-token", "bob-token"]

@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
+
+from app.core.time import humanize_status
 
 
 class TaskReviewerCreate(BaseModel):
@@ -26,6 +28,10 @@ class TaskReviewerResponse(TaskReviewerCreate):
     model_config = ConfigDict(from_attributes=True)
 
     reviewer_entry_id: UUID
+
+    @field_serializer("status")
+    def serialize_status(self, value: str) -> str:
+        return humanize_status(value)
 
 
 class StatusCountResponse(BaseModel):

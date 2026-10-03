@@ -2,6 +2,7 @@ from app.schemas.review_task import (
     ReviewTaskCreate,
     ReviewTaskResponse,
     ReviewTaskUpdate,
+    ReviewerTaskResponse,
 )
 from app.schemas.task_reviewer import (
     TaskReviewerCreate,
@@ -14,6 +15,7 @@ __all__ = [
     "ReviewTaskCreate",
     "ReviewTaskResponse",
     "ReviewTaskUpdate",
+    "ReviewerTaskResponse",
     "TaskReviewerCreate",
     "TaskReviewerResponse",
     "TaskReviewerUpdate",

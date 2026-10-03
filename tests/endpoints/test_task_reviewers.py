@@ -1,5 +1,5 @@
 def test_task_reviewer_crud_and_filter_routes(
-    client, user_factory, task_factory
+    client, user_factory, task_factory, login_as
 ):
     author = user_factory()
     assigned_user = user_factory(gitlab_id=2, username="bob")
@@ -13,7 +13,7 @@ def test_task_reviewer_crud_and_filter_routes(
 
     assert create_response.status_code == 201
     reviewer = create_response.json()
-    assert reviewer["status"] == "WAITING_FOR_REVIEW"
+    assert reviewer["status"] == "WAITING FOR REVIEW"
     assert reviewer["source"] == "MANUAL"
 
     reviewer_id = reviewer["reviewer_entry_id"]
@@ -24,6 +24,23 @@ def test_task_reviewer_crud_and_filter_routes(
     assert client.get(
         f"/api/task-reviewers/by-user/{assigned_user.user_id}"
     ).json() == [reviewer]
+    login_as(assigned_user)
+    reviewer_rows = client.post(
+        "/api/review-tasks/my-reviews",
+        json={},
+        params={"offset": 0, "limit": 10},
+    ).json()
+    assert reviewer_rows[0]["mr_title"] == task.mr_title
+    assert reviewer_rows[0]["mr_web_url"] == task.mr_web_url
+    assert reviewer_rows[0]["status"] == "WAITING FOR REVIEW"
+    assert reviewer_rows[0]["priority"] == task.priority
+    assert reviewer_rows[0]["jira_ticket_url"] is None
+    assert reviewer_rows[0]["developer"]["user_id"] == str(author.user_id)
+    filtered_reviewer_rows = client.post(
+        "/api/review-tasks/my-reviews",
+        json={"status": {"operator": "EQUALS", "values": ["WAITING_FOR_REVIEW"]}},
+    ).json()
+    assert [row["mr_title"] for row in filtered_reviewer_rows] == [task.mr_title]
     assert client.get(
         f"/api/task-reviewers/status-counts/reviewer/{assigned_user.user_id}"
     ).json() == {
@@ -81,6 +98,61 @@ def test_duplicate_task_reviewer_returns_conflict(
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Reviewer is already assigned to this task"}
+
+
+def test_my_reviews_supports_reviewer_status_sorting_and_pagination(
+    client, user_factory, task_factory, reviewer_factory, login_as
+):
+    author = user_factory()
+    assigned_user = user_factory(gitlab_id=2, username="bob")
+    waiting_task = task_factory(
+        author=author,
+        repo_gitlab_id=30,
+        gitlab_mr_id=31,
+        mr_title="Waiting task",
+    )
+    approved_task = task_factory(
+        author=author,
+        repo_gitlab_id=32,
+        gitlab_mr_id=33,
+        mr_title="Approved task",
+    )
+    reviewer_factory(
+        task=waiting_task,
+        assigned_user=assigned_user,
+        status="WAITING_FOR_REVIEW",
+    )
+    reviewer_factory(
+        task=approved_task,
+        assigned_user=assigned_user,
+        status="APPROVED",
+    )
+    login_as(assigned_user)
+
+    response = client.post(
+        "/api/review-tasks/my-reviews",
+        json={},
+        params={"sort_by": "status", "sort_order": "asc", "limit": 1},
+    )
+    assert response.status_code == 200
+    assert [row["mr_title"] for row in response.json()] == ["Approved task"]
+
+    response = client.post(
+        "/api/review-tasks/my-reviews",
+        json={},
+        params={"sort_by": "title", "sort_order": "desc"},
+    )
+    assert [row["mr_title"] for row in response.json()] == [
+        "Waiting task",
+        "Approved task",
+    ]
+
+    response = client.post(
+        "/api/review-tasks/my-reviews",
+        json={},
+        params={"sort_order": "sideways"},
+    )
+    assert response.status_code == 422
 
 
 def test_get_missing_task_reviewer_returns_not_found(client):

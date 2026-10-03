@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Literal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -8,17 +10,125 @@ from app.db.dals import ReviewTaskDAL
 from app.db.models import ReviewStatus, ReviewTask, TaskReviewer, User
 from app.exceptions import ResourceConflictError, ResourceNotFoundError
 
+SortField = Literal["title", "status", "priority", "created_at"]
+SortOrder = Literal["asc", "desc"]
+
 
 class ReviewTaskQuerier:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.dal = ReviewTaskDAL(session)
 
-    def list(self, author_user_id: UUID) -> list[ReviewTask]:
-        return self.dal.list_by_author(author_user_id)
+    def list(
+        self,
+        author_user_id: UUID,
+        *,
+        offset: int = 0,
+        limit: int | None = None,
+        sort_by: SortField | None = None,
+        sort_order: SortOrder = "desc",
+        filters: dict[str, dict[str, object]] | None = None,
+    ) -> list[ReviewTask]:
+        return self.dal.list_by_author(
+            author_user_id,
+            offset=offset,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            filters=filters,
+        )
 
     def list_assigned(self, user_id: UUID) -> list[ReviewTask]:
         return self.dal.list_by_reviewer(user_id)
+
+    def list_my_prs(
+        self,
+        user_id: UUID,
+        *,
+        offset: int,
+        limit: int,
+        sort_by: SortField,
+        sort_order: SortOrder,
+        filters: Mapping[str, object],
+    ) -> list[ReviewTask]:
+        return self.list(
+            user_id,
+            offset=offset,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            filters=self._serialize_filters(filters),
+        )
+
+    def list_my_reviews(
+        self,
+        user_id: UUID,
+        *,
+        offset: int,
+        limit: int,
+        sort_by: SortField,
+        sort_order: SortOrder,
+        filters: Mapping[str, object],
+    ) -> list[dict[str, object]]:
+        return self.list_reviewer_rows(
+            user_id,
+            offset=offset,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            filters=self._serialize_filters(filters),
+        )
+
+    @staticmethod
+    def _serialize_filters(
+        filters: Mapping[str, object],
+    ) -> dict[str, dict[str, object]]:
+        serialized: dict[str, dict[str, object]] = {}
+        for field, rule in filters.items():
+            if hasattr(rule, "model_dump"):
+                serialized[field] = rule.model_dump(
+                    by_alias=True,
+                    exclude_none=True,
+                )
+        return serialized
+
+    def list_reviewer_rows(
+        self,
+        user_id: UUID,
+        *,
+        offset: int = 0,
+        limit: int = 10,
+        sort_by: SortField | None = None,
+        sort_order: SortOrder = "desc",
+        filters: dict[str, dict[str, object]] | None = None,
+    ) -> list[dict[str, object]]:
+        tasks = self.dal.list_by_reviewer(
+            user_id,
+            offset=offset,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            filters=filters,
+        )
+        rows: list[dict[str, object]] = []
+        for task in tasks:
+            reviewer = next(
+                reviewer
+                for reviewer in task.reviewers
+                if reviewer.assigned_user_id == user_id
+            )
+            rows.append(
+                {
+                    "mr_title": task.mr_title,
+                    "mr_web_url": task.mr_web_url,
+                    "status": reviewer.status,
+                    "priority": task.priority,
+                    "created_at": task.created_at,
+                    "jira_ticket_url": task.jira_ticket_url,
+                    "developer": task.author,
+                }
+            )
+        return rows
 
     def create(self, values: dict[str, object]) -> ReviewTask:
         reviewer_user_ids = values.pop("reviewer_user_ids", [])
@@ -47,9 +157,6 @@ class ReviewTaskQuerier:
             raise ResourceConflictError("Review task already exists")
 
         web_url = str(gitlab_data.get("web_url", ""))
-        repo_web_url = web_url.split("/-/", 1)[0] or web_url.rsplit(
-            "/merge_requests/", 1
-        )[0]
         references = gitlab_data.get("references")
         repo_name = str(project_id)
         if isinstance(references, dict):
@@ -61,7 +168,7 @@ class ReviewTaskQuerier:
             author_user_id=user.user_id,
             repo_gitlab_id=project_id,
             repo_name=repo_name,
-            repo_web_url=repo_web_url,
+            mr_web_url=web_url,
             gitlab_mr_id=merge_request_iid,
             mr_title=str(gitlab_data.get("title", "")),
             description=description,

@@ -82,7 +82,7 @@ def task_factory(session: Session, user_factory):
             author=author or user_factory(),
             repo_gitlab_id=repo_gitlab_id,
             repo_name="patrick",
-            repo_web_url="https://gitlab.example/patrick",
+            mr_web_url="https://gitlab.example/patrick/-/merge_requests/20",
             gitlab_mr_id=gitlab_mr_id,
             mr_title=mr_title,
         )

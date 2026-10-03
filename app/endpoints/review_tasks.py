@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,9 +12,14 @@ from app.schemas.review_task import (
     ReviewTaskCreate,
     ReviewTaskFromGitLabCreate,
     ReviewTaskResponse,
+    ReviewTaskFilters,
     ReviewTaskUpdate,
+    ReviewerTaskResponse,
 )
 from app.queriers import ReviewTaskQuerier
+
+SortField = Literal["title", "status", "priority", "created_at"]
+SortOrder = Literal["asc", "desc"]
 
 router = APIRouter(prefix="/review-tasks", tags=["review-tasks"])
 
@@ -29,12 +35,52 @@ def list_review_tasks(
     return ReviewTaskQuerier(db).list(current_user.user_id)
 
 
+@router.post("/my-prs", response_model=list[ReviewTaskResponse])
+def filter_my_prs(
+    payload: ReviewTaskFilters,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1),
+    sort_by: SortField = Query(default="created_at"),
+    sort_order: SortOrder = Query(default="desc"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ReviewTaskResponse]:
+    return ReviewTaskQuerier(db).list_my_prs(
+        current_user.user_id,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        filters=payload.root,
+    )
+
+
 @router.get("/assigned", response_model=list[ReviewTaskResponse])
 def list_assigned_review_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ReviewTaskResponse]:
     return ReviewTaskQuerier(db).list_assigned(current_user.user_id)
+
+
+@router.post("/my-reviews", response_model=list[ReviewerTaskResponse])
+def filter_my_reviews(
+    payload: ReviewTaskFilters,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1),
+    sort_by: SortField = Query(default="created_at"),
+    sort_order: SortOrder = Query(default="desc"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ReviewerTaskResponse]:
+    return ReviewTaskQuerier(db).list_my_reviews(
+        current_user.user_id,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        filters=payload.root,
+    )
 
 
 @router.post("", response_model=ReviewTaskResponse, status_code=status.HTTP_201_CREATED)

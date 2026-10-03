@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import (
     BigInteger,
     Column,
+    DateTime,
     ForeignKey,
     String,
     Text,
@@ -11,6 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
+from app.core.time import now_in_jerusalem
 from app.db.base import Base
 
 
@@ -32,7 +34,7 @@ class ReviewTask(Base):
     )
     repo_gitlab_id = Column(BigInteger, nullable=False)
     repo_name = Column(String(255), nullable=False)
-    repo_web_url = Column(Text, nullable=False)
+    mr_web_url = Column(Text, nullable=False)
     gitlab_mr_id = Column(BigInteger, nullable=False)
     mr_title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
@@ -40,6 +42,7 @@ class ReviewTask(Base):
     priority = Column(String(50), server_default="NORMAL")
     status = Column(String(50), server_default="WAITING_FOR_REVIEW")
     jira_ticket_url = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=now_in_jerusalem, nullable=False,)
 
     author = relationship("User", back_populates="authored_tasks")
     reviewers = relationship(
