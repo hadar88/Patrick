@@ -12,7 +12,7 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
     model = ReviewTask
 
     _task_sort_columns = {
-        "title": ReviewTask.mr_title,
+        "mr_title": ReviewTask.mr_title,
         "status": ReviewTask.status,
         "priority": ReviewTask.priority,
         "created_at": ReviewTask.created_at,
@@ -101,7 +101,6 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         if not filters:
             return statement
         columns = {
-            "title": ReviewTask.mr_title,
             "mr_title": ReviewTask.mr_title,
             "status": reviewer_status,
             "priority": ReviewTask.priority,

@@ -140,7 +140,7 @@ def test_my_reviews_supports_reviewer_status_sorting_and_pagination(
     response = client.post(
         "/api/review-tasks/my-reviews",
         json={},
-        params={"sort_by": "title", "sort_order": "desc"},
+        params={"sort_by": "mr_title", "sort_order": "desc"},
     )
     assert [row["mr_title"] for row in response.json()] == [
         "Waiting task",

@@ -10,7 +10,7 @@ from app.db.dals import ReviewTaskDAL
 from app.db.models import ReviewStatus, ReviewTask, TaskReviewer, User
 from app.exceptions import ResourceConflictError, ResourceNotFoundError
 
-SortField = Literal["title", "status", "priority", "created_at"]
+SortField = Literal["mr_title", "status", "priority", "created_at"]
 SortOrder = Literal["asc", "desc"]
 
 

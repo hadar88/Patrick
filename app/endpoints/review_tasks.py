@@ -18,7 +18,7 @@ from app.schemas.review_task import (
 )
 from app.queriers import ReviewTaskQuerier
 
-SortField = Literal["title", "status", "priority", "created_at"]
+SortField = Literal["mr_title", "status", "priority", "created_at"]
 SortOrder = Literal["asc", "desc"]
 
 router = APIRouter(prefix="/review-tasks", tags=["review-tasks"])

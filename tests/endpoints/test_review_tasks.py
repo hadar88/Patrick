@@ -112,7 +112,7 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
     response = client.post(
         "/api/review-tasks/my-prs",
         json={},
-        params={"sort_by": "title", "sort_order": "asc", "limit": 1},
+        params={"sort_by": "mr_title", "sort_order": "asc", "limit": 1},
     )
     assert response.status_code == 200
     assert [task["mr_title"] for task in response.json()] == ["Alpha change"]
@@ -128,6 +128,13 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
         "/api/review-tasks/my-prs",
         json={},
         params={"sort_by": "unsupported"},
+    )
+    assert response.status_code == 422
+
+    response = client.post(
+        "/api/review-tasks/my-prs",
+        json={},
+        params={"sort_by": "title"},
     )
     assert response.status_code == 422
 
