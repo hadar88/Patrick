@@ -75,6 +75,42 @@ class GitLabClient:
             raise GitLabError("GitLab OAuth returned an invalid token")
         return result
 
+    def refresh_access_token(self, refresh_token: str) -> dict[str, object]:
+        settings = get_settings()
+        if not settings.gitlab_client_id or not settings.gitlab_client_secret:
+            raise GitLabError("GitLab OAuth is not configured")
+        payload = urlencode(
+            {
+                "client_id": settings.gitlab_client_id,
+                "client_secret": settings.gitlab_client_secret,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            }
+        ).encode()
+        request = Request(
+            f"{self.base_url}/oauth/token",
+            data=payload,
+            method="POST",
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                result = json.load(response)
+        except HTTPError as error:
+            if error.code in (400, 401):
+                raise GitLabAuthenticationError(
+                    "GitLab authentication failed"
+                ) from error
+            raise GitLabError("GitLab OAuth token refresh failed") from error
+        except (URLError, TimeoutError, json.JSONDecodeError) as error:
+            raise GitLabError("GitLab OAuth token refresh failed") from error
+        if not isinstance(result, dict) or not result.get("access_token"):
+            raise GitLabError("GitLab returned an invalid refreshed token")
+        return result
+
     def current_user(self) -> dict[str, object]:
         result = self._get("user")
         if not isinstance(result, dict) or not result.get("id"):

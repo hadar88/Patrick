@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from fastapi import status
+
 from app.core.time import JERUSALEM_TIMEZONE, now_in_jerusalem
 from app.db.models import GitLabConnection, TaskReviewer
 
@@ -31,7 +33,7 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
 
     create_response = client.post("/api/review-tasks", json=payload)
 
-    assert create_response.status_code == 201
+    assert create_response.status_code == status.HTTP_201_CREATED
     task = create_response.json()
     assert task["mr_state"] == "opened"
     assert task["priority"] == "NORMAL"
@@ -59,13 +61,13 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
         f"/api/review-tasks/{task_id}",
         json={"priority": "HIGH", "jira_ticket_url": "https://jira.example/browse/PAT-1"},
     )
-    assert update_response.status_code == 200
+    assert update_response.status_code == status.HTTP_200_OK
     assert update_response.json()["priority"] == "HIGH"
     assert update_response.json()["jira_ticket_url"] == "https://jira.example/browse/PAT-1"
 
     delete_response = client.delete(f"/api/review-tasks/{task_id}")
-    assert delete_response.status_code == 204
-    assert client.get(f"/api/review-tasks/{task_id}").status_code == 404
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    assert client.get(f"/api/review-tasks/{task_id}").status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_duplicate_review_task_returns_conflict(client, user_factory, login_as):
@@ -79,11 +81,11 @@ def test_duplicate_review_task_returns_conflict(client, user_factory, login_as):
         "gitlab_mr_id": 8,
         "mr_title": "Improve review flow",
     }
-    assert client.post("/api/review-tasks", json=payload).status_code == 201
+    assert client.post("/api/review-tasks", json=payload).status_code == status.HTTP_201_CREATED
 
     response = client.post("/api/review-tasks", json=payload)
 
-    assert response.status_code == 409
+    assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json() == {"detail": "Review task already exists"}
 
 
@@ -107,14 +109,14 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
                 "priority": priority,
             },
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
     response = client.post(
         "/api/review-tasks/my-prs",
         json={},
         params={"sort_by": "mr_title", "sort_order": "asc", "limit": 1},
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert [task["mr_title"] for task in response.json()] == ["Alpha change"]
 
     response = client.post(
@@ -129,14 +131,14 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
         json={},
         params={"sort_by": "unsupported"},
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     response = client.post(
         "/api/review-tasks/my-prs",
         json={},
         params={"sort_by": "title"},
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_my_prs_supports_equals_and_created_at_range_filters(
@@ -196,7 +198,7 @@ def test_my_prs_rejects_invalid_created_at_range(client, user_factory, login_as)
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_get_missing_review_task_requires_authentication(client):
@@ -204,7 +206,7 @@ def test_get_missing_review_task_requires_authentication(client):
         "/api/review-tasks/00000000-0000-0000-0000-000000000000"
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json() == {"detail": "GitLab authentication required"}
 
 
@@ -220,7 +222,7 @@ def test_null_review_task_status_update_returns_validation_error(
         json={"status": None},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_create_review_task_from_gitlab(
@@ -246,7 +248,7 @@ def test_create_review_task_from_gitlab(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     assert response.json()["description"] == "Please review the API changes"
     assert response.json()["mr_web_url"] == (
         "https://gitlab.example/team/patrick/-/merge_requests/8"
@@ -285,7 +287,7 @@ def test_create_review_task_from_gitlab_can_assign_author_as_reviewer(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     assert response.json()["reviewers"][0]["assigned_user_id"] == str(author.user_id)
     assert client.get(
         f"/api/task-reviewers/status-counts/reviewer/{author.user_id}"
