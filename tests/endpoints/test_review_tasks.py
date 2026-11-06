@@ -38,6 +38,7 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
     assert task["mr_state"] == "opened"
     assert task["priority"] == "NORMAL"
     assert task["status"] == "WAITING FOR REVIEW"
+    assert task["repo_url"] == "https://gitlab.example/patrick"
     created_at = datetime.fromisoformat(task["created_at"])
     assert isinstance(created_at, datetime)
 
@@ -300,10 +301,13 @@ def test_create_review_task_from_gitlab(
     assert response.json()["mr_web_url"] == (
         "https://gitlab.example/team/patrick/-/merge_requests/8"
     )
+    assert response.json()["repo_url"] == "https://gitlab.example/team/patrick"
     assert response.json()["author_user_id"] == str(author.user_id)
     assert response.json()["reviewers"][0]["assigned_user_id"] == str(
         reviewer.user_id
     )
+    assert response.json()["reviewers"][0]["username"] == "reviewer"
+    assert response.json()["reviewers"][0]["display_name"] == "Alice"
     task_reviewers = session.query(TaskReviewer).all()
     assert len(task_reviewers) == 1
     assert task_reviewers[0].assigned_user_id == reviewer.user_id

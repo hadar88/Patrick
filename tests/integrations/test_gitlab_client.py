@@ -7,7 +7,6 @@ import pytest
 from app.integrations.gitlab import (
     GitLabAuthenticationError,
     GitLabClient,
-    GitLabError,
 )
 
 
@@ -96,6 +95,7 @@ def test_authored_merge_requests_uses_created_by_me_scope(monkeypatch):
         "author": {"id": 1, "username": "alice", "name": "Alice"},
         "reviewers": [{"id": 2, "username": "bob", "name": "Bob"}],
         "repository": "team/patrick",
+        "repository_url": "https://gitlab.example/team/patrick",
         "iid": 8,
         "state": "opened",
     }]
