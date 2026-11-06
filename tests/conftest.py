@@ -77,6 +77,7 @@ def task_factory(session: Session, user_factory):
         repo_gitlab_id: int = 10,
         gitlab_mr_id: int = 20,
         mr_title: str = "Improve review flow",
+        mr_state: str = "opened",
     ) -> ReviewTask:
         task = ReviewTask(
             author=author or user_factory(),
@@ -85,6 +86,7 @@ def task_factory(session: Session, user_factory):
             mr_web_url="https://gitlab.example/patrick/-/merge_requests/20",
             gitlab_mr_id=gitlab_mr_id,
             mr_title=mr_title,
+            mr_state=mr_state,
         )
         session.add(task)
         session.flush()

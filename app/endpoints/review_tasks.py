@@ -27,12 +27,13 @@ router = APIRouter(prefix="/review-tasks", tags=["review-tasks"])
 @router.get("", response_model=list[ReviewTaskResponse])
 def list_review_tasks(
     author_user_id: UUID | None = Query(default=None),
+    mr_state: Literal["opened", "closed"] = Query(default="opened"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ReviewTaskResponse]:
     if author_user_id is not None and author_user_id != current_user.user_id:
         return []
-    return ReviewTaskQuerier(db).list(current_user.user_id)
+    return ReviewTaskQuerier(db).list(current_user.user_id, mr_state=mr_state)
 
 
 @router.post("/my-prs", response_model=list[ReviewTaskResponse])
@@ -42,6 +43,7 @@ def filter_my_prs(
     limit: int = Query(default=10, ge=1),
     sort_by: SortField = Query(default="created_at"),
     sort_order: SortOrder = Query(default="desc"),
+    mr_state: Literal["opened", "closed"] = Query(default="opened"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ReviewTaskResponse]:
@@ -52,15 +54,19 @@ def filter_my_prs(
         sort_by=sort_by,
         sort_order=sort_order,
         filters=payload.root,
+        mr_state=mr_state,
     )
 
 
 @router.get("/assigned", response_model=list[ReviewTaskResponse])
 def list_assigned_review_tasks(
+    mr_state: Literal["opened", "closed"] = Query(default="opened"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ReviewTaskResponse]:
-    return ReviewTaskQuerier(db).list_assigned(current_user.user_id)
+    return ReviewTaskQuerier(db).list_assigned(
+        current_user.user_id, mr_state=mr_state
+    )
 
 
 @router.post("/my-reviews", response_model=list[ReviewerTaskResponse])
@@ -70,6 +76,7 @@ def filter_my_reviews(
     limit: int = Query(default=10, ge=1),
     sort_by: SortField = Query(default="created_at"),
     sort_order: SortOrder = Query(default="desc"),
+    mr_state: Literal["opened", "closed"] = Query(default="opened"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ReviewerTaskResponse]:
@@ -80,6 +87,7 @@ def filter_my_reviews(
         sort_by=sort_by,
         sort_order=sort_order,
         filters=payload.root,
+        mr_state=mr_state,
     )
 
 

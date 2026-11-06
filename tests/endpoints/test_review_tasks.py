@@ -181,6 +181,53 @@ def test_my_prs_supports_equals_and_created_at_range_filters(
     assert [task["mr_title"] for task in response.json()] == ["Filtered task"]
 
 
+def test_table_routes_filter_by_merge_request_state(
+    client, user_factory, task_factory, reviewer_factory, login_as
+):
+    author = user_factory()
+    reviewer = user_factory(gitlab_id=2, username="reviewer")
+    opened_task = task_factory(author=author, mr_state="opened", gitlab_mr_id=41)
+    closed_task = task_factory(author=author, mr_state="closed", gitlab_mr_id=42)
+    reviewer_factory(task=opened_task, assigned_user=reviewer)
+    reviewer_factory(task=closed_task, assigned_user=reviewer)
+
+    login_as(author)
+    assert [
+        task["task_id"]
+        for task in client.get("/api/review-tasks").json()
+    ] == [str(opened_task.task_id)]
+    assert [
+        task["task_id"]
+        for task in client.get(
+            "/api/review-tasks", params={"mr_state": "closed"}
+        ).json()
+    ] == [str(closed_task.task_id)]
+    assert [
+        task["task_id"]
+        for task in client.post(
+            "/api/review-tasks/my-prs",
+            params={"mr_state": "opened"},
+            json={},
+        ).json()
+    ] == [str(opened_task.task_id)]
+
+    login_as(reviewer)
+    assert [
+        task["task_id"]
+        for task in client.get(
+            "/api/review-tasks/assigned", params={"mr_state": "closed"}
+        ).json()
+    ] == [str(closed_task.task_id)]
+    assert [
+        task["mr_title"]
+        for task in client.post(
+            "/api/review-tasks/my-reviews",
+            params={"mr_state": "opened"},
+            json={},
+        ).json()
+    ] == [opened_task.mr_title]
+
+
 def test_my_prs_rejects_invalid_created_at_range(client, user_factory, login_as):
     author = user_factory()
     login_as(author)
