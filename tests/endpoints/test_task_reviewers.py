@@ -1,3 +1,6 @@
+from fastapi import status
+
+
 def test_task_reviewer_crud_and_filter_routes(
     client, user_factory, task_factory, login_as
 ):
@@ -11,7 +14,7 @@ def test_task_reviewer_crud_and_filter_routes(
 
     create_response = client.post("/api/task-reviewers", json=payload)
 
-    assert create_response.status_code == 201
+    assert create_response.status_code == status.HTTP_201_CREATED
     reviewer = create_response.json()
     assert reviewer["status"] == "WAITING FOR REVIEW"
     assert reviewer["source"] == "MANUAL"
@@ -73,13 +76,13 @@ def test_task_reviewer_crud_and_filter_routes(
         f"/api/task-reviewers/{reviewer_id}",
         json={"status": "APPROVED", "source": "AUTOMATIC"},
     )
-    assert update_response.status_code == 200
+    assert update_response.status_code == status.HTTP_200_OK
     assert update_response.json()["status"] == "APPROVED"
     assert update_response.json()["source"] == "AUTOMATIC"
 
     delete_response = client.delete(f"/api/task-reviewers/{reviewer_id}")
-    assert delete_response.status_code == 204
-    assert client.get(f"/api/task-reviewers/{reviewer_id}").status_code == 404
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    assert client.get(f"/api/task-reviewers/{reviewer_id}").status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_duplicate_task_reviewer_returns_conflict(
@@ -92,11 +95,11 @@ def test_duplicate_task_reviewer_returns_conflict(
         "task_id": str(task.task_id),
         "assigned_user_id": str(assigned_user.user_id),
     }
-    assert client.post("/api/task-reviewers", json=payload).status_code == 201
+    assert client.post("/api/task-reviewers", json=payload).status_code == status.HTTP_201_CREATED
 
     response = client.post("/api/task-reviewers", json=payload)
 
-    assert response.status_code == 409
+    assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json() == {"detail": "Reviewer is already assigned to this task"}
 
 
@@ -134,13 +137,13 @@ def test_my_reviews_supports_reviewer_status_sorting_and_pagination(
         json={},
         params={"sort_by": "status", "sort_order": "asc", "limit": 1},
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert [row["mr_title"] for row in response.json()] == ["Approved task"]
 
     response = client.post(
         "/api/review-tasks/my-reviews",
         json={},
-        params={"sort_by": "title", "sort_order": "desc"},
+        params={"sort_by": "mr_title", "sort_order": "desc"},
     )
     assert [row["mr_title"] for row in response.json()] == [
         "Waiting task",
@@ -152,7 +155,7 @@ def test_my_reviews_supports_reviewer_status_sorting_and_pagination(
         json={},
         params={"sort_order": "sideways"},
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_get_missing_task_reviewer_returns_not_found(client):
@@ -160,7 +163,7 @@ def test_get_missing_task_reviewer_returns_not_found(client):
         "/api/task-reviewers/00000000-0000-0000-0000-000000000000"
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert response.json() == {"detail": "Reviewer not found"}
 
 
@@ -183,4 +186,4 @@ def test_null_reviewer_status_update_returns_validation_error(
         json={"status": None},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

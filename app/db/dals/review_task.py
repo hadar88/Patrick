@@ -12,7 +12,7 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
     model = ReviewTask
 
     _task_sort_columns = {
-        "title": ReviewTask.mr_title,
+        "mr_title": ReviewTask.mr_title,
         "status": ReviewTask.status,
         "priority": ReviewTask.priority,
         "created_at": ReviewTask.created_at,
@@ -36,10 +36,13 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         sort_by: str | None = None,
         sort_order: str = "desc",
         filters: dict[str, dict[str, object]] | None = None,
+        mr_state: str | None = None,
     ) -> list[ReviewTask]:
         statement = select(ReviewTask).where(
             ReviewTask.author_user_id == author_user_id
         )
+        if mr_state is not None:
+            statement = statement.where(ReviewTask.mr_state == mr_state)
         statement = self._apply_filters(statement, ReviewTask.status, filters)
         if sort_by is not None:
             sort_column = self._task_sort_columns[sort_by]
@@ -61,6 +64,7 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         sort_by: str | None = None,
         sort_order: str = "desc",
         filters: dict[str, dict[str, object]] | None = None,
+        mr_state: str | None = None,
     ) -> list[ReviewTask]:
         reviewer_status = (
             select(TaskReviewer.status)
@@ -80,6 +84,8 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
                 TaskReviewer.assigned_user_id == assigned_user_id,
             )
         )
+        if mr_state is not None:
+            statement = statement.where(ReviewTask.mr_state == mr_state)
         statement = self._apply_filters(statement, reviewer_status, filters)
         if sort_by is not None:
             sort_column = sort_columns[sort_by]
@@ -101,7 +107,6 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         if not filters:
             return statement
         columns = {
-            "title": ReviewTask.mr_title,
             "mr_title": ReviewTask.mr_title,
             "status": reviewer_status,
             "priority": ReviewTask.priority,

@@ -10,7 +10,7 @@ from app.db.dals import ReviewTaskDAL
 from app.db.models import ReviewStatus, ReviewTask, TaskReviewer, User
 from app.exceptions import ResourceConflictError, ResourceNotFoundError
 
-SortField = Literal["title", "status", "priority", "created_at"]
+SortField = Literal["mr_title", "status", "priority", "created_at"]
 SortOrder = Literal["asc", "desc"]
 
 
@@ -28,6 +28,7 @@ class ReviewTaskQuerier:
         sort_by: SortField | None = None,
         sort_order: SortOrder = "desc",
         filters: dict[str, dict[str, object]] | None = None,
+        mr_state: str | None = None,
     ) -> list[ReviewTask]:
         return self.dal.list_by_author(
             author_user_id,
@@ -36,10 +37,13 @@ class ReviewTaskQuerier:
             sort_by=sort_by,
             sort_order=sort_order,
             filters=filters,
+            mr_state=mr_state,
         )
 
-    def list_assigned(self, user_id: UUID) -> list[ReviewTask]:
-        return self.dal.list_by_reviewer(user_id)
+    def list_assigned(
+        self, user_id: UUID, *, mr_state: str | None = None
+    ) -> list[ReviewTask]:
+        return self.dal.list_by_reviewer(user_id, mr_state=mr_state)
 
     def list_my_prs(
         self,
@@ -50,6 +54,7 @@ class ReviewTaskQuerier:
         sort_by: SortField,
         sort_order: SortOrder,
         filters: Mapping[str, object],
+        mr_state: str | None = None,
     ) -> list[ReviewTask]:
         return self.list(
             user_id,
@@ -58,6 +63,7 @@ class ReviewTaskQuerier:
             sort_by=sort_by,
             sort_order=sort_order,
             filters=self._serialize_filters(filters),
+            mr_state=mr_state,
         )
 
     def list_my_reviews(
@@ -69,6 +75,7 @@ class ReviewTaskQuerier:
         sort_by: SortField,
         sort_order: SortOrder,
         filters: Mapping[str, object],
+        mr_state: str | None = None,
     ) -> list[dict[str, object]]:
         return self.list_reviewer_rows(
             user_id,
@@ -77,6 +84,7 @@ class ReviewTaskQuerier:
             sort_by=sort_by,
             sort_order=sort_order,
             filters=self._serialize_filters(filters),
+            mr_state=mr_state,
         )
 
     @staticmethod
@@ -101,6 +109,7 @@ class ReviewTaskQuerier:
         sort_by: SortField | None = None,
         sort_order: SortOrder = "desc",
         filters: dict[str, dict[str, object]] | None = None,
+        mr_state: str | None = None,
     ) -> list[dict[str, object]]:
         tasks = self.dal.list_by_reviewer(
             user_id,
@@ -109,6 +118,7 @@ class ReviewTaskQuerier:
             sort_by=sort_by,
             sort_order=sort_order,
             filters=filters,
+            mr_state=mr_state,
         )
         rows: list[dict[str, object]] = []
         for task in tasks:

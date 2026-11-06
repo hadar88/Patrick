@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from fastapi import status
+
 from app.db.models import User
 
 
@@ -34,7 +36,7 @@ def test_gitlab_login_promotes_configured_admin(client, session, monkeypatch):
         follow_redirects=False,
     )
 
-    assert callback_response.status_code == 307
+    assert callback_response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     created_user = session.query(User).one()
     assert created_user.is_admin is True
 
@@ -51,5 +53,5 @@ def test_logout_clears_authentication_session(client, monkeypatch):
 
     logout_response = client.post("/api/auth/logout")
 
-    assert logout_response.status_code == 204
-    assert client.get("/api/users").status_code == 401
+    assert logout_response.status_code == status.HTTP_204_NO_CONTENT
+    assert client.get("/api/users").status_code == status.HTTP_401_UNAUTHORIZED
