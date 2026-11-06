@@ -184,12 +184,17 @@ class GitLabClient:
             GitLabClient._format_user(reviewer)
             for reviewer in reviewer_list
         ]
+        web_url = merge_request.get("web_url")
+        repository_url = ""
+        if isinstance(web_url, str):
+            repository_url = web_url.split("/-/merge_requests/", 1)[0]
         return {
-            "pr_link": merge_request.get("web_url"),
+            "pr_link": web_url,
             "title": merge_request.get("title"),
             "author": author_data,
             "reviewers": reviewer_data,
             "repository": repository,
+            "repository_url": repository_url,
             "iid": merge_request.get("iid"),
             "state": merge_request.get("state"),
         }

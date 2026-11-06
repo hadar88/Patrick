@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import (
@@ -6,11 +7,11 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
+    computed_field,
     field_serializer,
     field_validator,
     model_validator,
 )
-from typing import Literal
 
 from app.core.time import JERUSALEM_TIMEZONE, humanize_status
 from app.schemas.task_reviewer import TaskReviewerResponse
@@ -63,6 +64,11 @@ class ReviewTaskResponse(ReviewTaskCreate):
     created_at: datetime
     reviewers: list[TaskReviewerResponse] = Field(default_factory=list)
 
+    @computed_field
+    @property
+    def repo_url(self) -> str:
+        return _repository_url_from_merge_request_url(self.mr_web_url)
+
     @field_serializer("status")
     def serialize_status(self, value: str) -> str:
         return humanize_status(value)
@@ -84,6 +90,11 @@ class ReviewerTaskResponse(BaseModel):
     jira_ticket_url: str | None = None
     developer: UserResponse
 
+    @computed_field
+    @property
+    def repo_url(self) -> str:
+        return _repository_url_from_merge_request_url(self.mr_web_url)
+
     @field_validator("created_at", mode="before")
     @classmethod
     def ensure_jerusalem_timezone(cls, value: datetime) -> datetime:
@@ -94,6 +105,10 @@ class ReviewerTaskResponse(BaseModel):
     @field_serializer("status")
     def serialize_status(self, value: str) -> str:
         return humanize_status(value)
+
+
+def _repository_url_from_merge_request_url(merge_request_url: str) -> str:
+    return merge_request_url.split("/-/merge_requests/", 1)[0]
 
 
 class ReviewTaskFilter(BaseModel):
