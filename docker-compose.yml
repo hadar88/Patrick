@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: patrick-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: patrick
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - patrick-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d patrick"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  patrick-postgres-data:
