@@ -60,6 +60,12 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         if self.database_url:
+            if self.database_url.startswith(("postgres://", "postgresql://")):
+                return self.database_url.replace(
+                    "postgres://", "postgresql+psycopg://", 1
+                ).replace(
+                    "postgresql://", "postgresql+psycopg://", 1
+                )
             return self.database_url
 
         postgres_settings = (
