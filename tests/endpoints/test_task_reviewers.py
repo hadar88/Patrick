@@ -33,6 +33,7 @@ def test_task_reviewer_crud_and_filter_routes(
         json={},
         params={"offset": 0, "limit": 10},
     ).json()
+    assert reviewer_rows[0]["task_id"] == str(task.task_id)
     assert reviewer_rows[0]["mr_title"] == task.mr_title
     assert reviewer_rows[0]["mr_web_url"] == task.mr_web_url
     assert reviewer_rows[0]["status"] == "WAITING FOR REVIEW"
@@ -48,7 +49,7 @@ def test_task_reviewer_crud_and_filter_routes(
         f"/api/task-reviewers/status-counts/reviewer/{assigned_user.user_id}"
     ).json() == {
         "WAITING_FOR_REVIEW": 1,
-        "REVIEW": 0,
+        "IN_REVIEW": 0,
         "CHANGES_NEEDED": 0,
         "APPROVED": 0,
         "CLOSED": 0,
@@ -57,7 +58,7 @@ def test_task_reviewer_crud_and_filter_routes(
         f"/api/task-reviewers/status-counts/assignee/{author.user_id}"
     ).json() == {
         "WAITING_FOR_REVIEW": 1,
-        "REVIEW": 0,
+        "IN_REVIEW": 0,
         "CHANGES_NEEDED": 0,
         "APPROVED": 0,
         "CLOSED": 0,
@@ -79,6 +80,27 @@ def test_task_reviewer_crud_and_filter_routes(
     assert update_response.status_code == status.HTTP_200_OK
     assert update_response.json()["status"] == "APPROVED"
     assert update_response.json()["source"] == "AUTOMATIC"
+    assert client.get(f"/api/review-tasks/{task.task_id}").json()["status"] == "APPROVED"
+
+    login_as(author)
+    close_response = client.patch(
+        f"/api/review-tasks/{task.task_id}",
+        json={"status": "CLOSED"},
+    )
+    assert close_response.status_code == status.HTTP_200_OK
+    assert close_response.json()["status"] == "CLOSED"
+
+    login_as(assigned_user)
+    reviewer_task = client.post("/api/review-tasks/my-reviews", json={}).json()[0]
+    assert reviewer_task["status"] == "CLOSED"
+
+    login_as(author)
+    reopen_reviewer_response = client.patch(
+        f"/api/task-reviewers/by-task/{task.task_id}/reviewers/{reviewer_id}",
+        json={"status": "WAITING_FOR_REVIEW"},
+    )
+    assert reopen_reviewer_response.status_code == status.HTTP_200_OK
+    assert reopen_reviewer_response.json()["status"] == "WAITING FOR REVIEW"
 
     delete_response = client.delete(f"/api/task-reviewers/{reviewer_id}")
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT

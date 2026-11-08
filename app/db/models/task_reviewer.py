@@ -9,7 +9,7 @@ from app.db.base import Base
 
 class ReviewStatus(str, enum.Enum):
     WAITING_FOR_REVIEW = "WAITING_FOR_REVIEW"
-    REVIEW = "REVIEW"
+    IN_REVIEW = "IN_REVIEW"
     CHANGES_NEEDED = "CHANGES_NEEDED"
     APPROVED = "APPROVED"
     CLOSED = "CLOSED"

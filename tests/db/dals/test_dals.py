@@ -68,7 +68,7 @@ def test_review_task_defaults_are_applied(session, task_factory):
     task = task_factory()
 
     assert task.mr_state == "opened"
-    assert task.priority == "NORMAL"
+    assert task.priority == "MEDIUM"
     assert task.status == "WAITING_FOR_REVIEW"
     assert task.jira_ticket_url is None
 

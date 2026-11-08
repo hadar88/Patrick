@@ -39,7 +39,7 @@ class ReviewTask(Base):
     mr_title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     mr_state = Column(String(50), server_default="opened")
-    priority = Column(String(50), server_default="NORMAL")
+    priority = Column(String(50), server_default="MEDIUM")
     status = Column(String(50), server_default="WAITING_FOR_REVIEW")
     jira_ticket_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), default=now_in_jerusalem, nullable=False,)

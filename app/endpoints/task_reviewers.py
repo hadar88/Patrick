@@ -3,7 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.db.models import User
 from app.db.session import get_db
+from app.endpoints.auth import get_current_user
 from app.schemas.task_reviewer import (
     TaskReviewerCreate,
     TaskReviewerResponse,
@@ -25,6 +27,39 @@ def list_reviewers_by_task(
     db: Session = Depends(get_db),
 ) -> list[TaskReviewerResponse]:
     return TaskReviewerQuerier(db).list_by_task(task_id)
+
+
+@router.patch("/by-task/{task_id}", response_model=TaskReviewerResponse)
+def update_my_task_reviewer(
+    task_id: UUID,
+    payload: TaskReviewerUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TaskReviewerResponse:
+    return TaskReviewerQuerier(db).update_for_task(
+        task_id,
+        current_user.user_id,
+        payload.model_dump(exclude_unset=True),
+    )
+
+
+@router.patch(
+    "/by-task/{task_id}/reviewers/{reviewer_entry_id}",
+    response_model=TaskReviewerResponse,
+)
+def update_task_reviewer_as_assignee(
+    task_id: UUID,
+    reviewer_entry_id: UUID,
+    payload: TaskReviewerUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TaskReviewerResponse:
+    return TaskReviewerQuerier(db).update_for_assignee(
+        task_id,
+        reviewer_entry_id,
+        current_user.user_id,
+        payload.model_dump(exclude_unset=True),
+    )
 
 
 @router.get("/by-user/{user_id}", response_model=list[TaskReviewerResponse])
@@ -74,7 +109,8 @@ def update_task_reviewer(
     db: Session = Depends(get_db),
 ) -> TaskReviewerResponse:
     return TaskReviewerQuerier(db).update(
-        reviewer_entry_id, payload.model_dump(exclude_unset=True)
+        reviewer_entry_id,
+        payload.model_dump(exclude_unset=True),
     )
 
 

@@ -36,7 +36,7 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
     assert create_response.status_code == status.HTTP_201_CREATED
     task = create_response.json()
     assert task["mr_state"] == "opened"
-    assert task["priority"] == "NORMAL"
+    assert task["priority"] == "MEDIUM"
     assert task["status"] == "WAITING FOR REVIEW"
     assert task["repo_url"] == "https://gitlab.example/patrick"
     created_at = datetime.fromisoformat(task["created_at"])
@@ -60,11 +60,24 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
 
     update_response = client.patch(
         f"/api/review-tasks/{task_id}",
-        json={"priority": "HIGH", "jira_ticket_url": "https://jira.example/browse/PAT-1"},
+        json={
+            "priority": "HIGH",
+            "description": "Updated review instructions",
+            "jira_ticket_url": "https://jira.example/browse/PAT-1",
+        },
     )
     assert update_response.status_code == status.HTTP_200_OK
     assert update_response.json()["priority"] == "HIGH"
+    assert update_response.json()["description"] == "Updated review instructions"
     assert update_response.json()["jira_ticket_url"] == "https://jira.example/browse/PAT-1"
+
+    remove_reviewers_response = client.patch(
+        f"/api/review-tasks/{task_id}",
+        json={"reviewer_user_ids": []},
+    )
+    assert remove_reviewers_response.status_code == status.HTTP_200_OK
+    assert remove_reviewers_response.json()["reviewers"] == []
+    assert remove_reviewers_response.json()["status"] == "WAITING FOR REVIEW"
 
     delete_response = client.delete(f"/api/review-tasks/{task_id}")
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT
@@ -87,7 +100,7 @@ def test_duplicate_review_task_returns_conflict(client, user_factory, login_as):
     response = client.post("/api/review-tasks", json=payload)
 
     assert response.status_code == status.HTTP_409_CONFLICT
-    assert response.json() == {"detail": "Review task already exists"}
+    assert response.json() == {"detail": "This review task already exists"}
 
 
 def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
@@ -125,7 +138,7 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
         json={},
         params={"sort_by": "priority", "sort_order": "desc"},
     )
-    assert [task["priority"] for task in response.json()] == ["LOW", "HIGH"]
+    assert [task["priority"] for task in response.json()] == ["HIGH", "LOW"]
 
     response = client.post(
         "/api/review-tasks/my-prs",

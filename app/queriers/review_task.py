@@ -29,6 +29,7 @@ class ReviewTaskQuerier:
         sort_order: SortOrder = "desc",
         filters: dict[str, dict[str, object]] | None = None,
         mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[ReviewTask]:
         return self.dal.list_by_author(
             author_user_id,
@@ -38,12 +39,21 @@ class ReviewTaskQuerier:
             sort_order=sort_order,
             filters=filters,
             mr_state=mr_state,
+            task_status=task_status,
         )
 
     def list_assigned(
-        self, user_id: UUID, *, mr_state: str | None = None
+        self,
+        user_id: UUID,
+        *,
+        mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[ReviewTask]:
-        return self.dal.list_by_reviewer(user_id, mr_state=mr_state)
+        return self.dal.list_by_reviewer(
+            user_id,
+            mr_state=mr_state,
+            task_status=task_status,
+        )
 
     def list_my_prs(
         self,
@@ -55,6 +65,7 @@ class ReviewTaskQuerier:
         sort_order: SortOrder,
         filters: Mapping[str, object],
         mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[ReviewTask]:
         return self.list(
             user_id,
@@ -64,6 +75,7 @@ class ReviewTaskQuerier:
             sort_order=sort_order,
             filters=self._serialize_filters(filters),
             mr_state=mr_state,
+            task_status=task_status,
         )
 
     def list_my_reviews(
@@ -76,6 +88,7 @@ class ReviewTaskQuerier:
         sort_order: SortOrder,
         filters: Mapping[str, object],
         mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[dict[str, object]]:
         return self.list_reviewer_rows(
             user_id,
@@ -85,6 +98,7 @@ class ReviewTaskQuerier:
             sort_order=sort_order,
             filters=self._serialize_filters(filters),
             mr_state=mr_state,
+            task_status=task_status,
         )
 
     @staticmethod
@@ -110,6 +124,7 @@ class ReviewTaskQuerier:
         sort_order: SortOrder = "desc",
         filters: dict[str, dict[str, object]] | None = None,
         mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[dict[str, object]]:
         tasks = self.dal.list_by_reviewer(
             user_id,
@@ -119,6 +134,7 @@ class ReviewTaskQuerier:
             sort_order=sort_order,
             filters=filters,
             mr_state=mr_state,
+            task_status=task_status,
         )
         rows: list[dict[str, object]] = []
         for task in tasks:
@@ -129,6 +145,7 @@ class ReviewTaskQuerier:
             )
             rows.append(
                 {
+                    "task_id": task.task_id,
                     "mr_title": task.mr_title,
                     "mr_web_url": task.mr_web_url,
                     "status": reviewer.status,
@@ -145,7 +162,7 @@ class ReviewTaskQuerier:
         if self.dal.get_by_gitlab_mr_id(
             values["repo_gitlab_id"], values["gitlab_mr_id"]
         ):
-            raise ResourceConflictError("Review task already exists")
+            raise ResourceConflictError("This review task already exists")
         task = self.dal.create(values)
         self._add_reviewers(task, reviewer_user_ids, source="MANUAL")
         self.session.commit()
@@ -157,14 +174,14 @@ class ReviewTaskQuerier:
         project_id: int,
         merge_request_iid: int,
         gitlab_data: dict[str, object],
-        priority: str = "NORMAL",
+        priority: str = "MEDIUM",
         jira_ticket_url: str | None = None,
         description: str | None = None,
         reviewer_user_ids: list[UUID] | None = None,
         reviewer_gitlab_ids: list[int] | None = None,
     ) -> ReviewTask:
         if self.dal.get_by_gitlab_mr_id(project_id, merge_request_iid):
-            raise ResourceConflictError("Review task already exists")
+            raise ResourceConflictError("This review task already exists")
 
         web_url = str(gitlab_data.get("web_url", ""))
         references = gitlab_data.get("references")
@@ -193,9 +210,35 @@ class ReviewTaskQuerier:
             assigned_user = self.session.query(User).filter(
                 User.gitlab_id == reviewer_gitlab_id
             ).one_or_none()
+            if assigned_user is None:
+                reviewer_data = gitlab_data.get("reviewers", [])
+                reviewer_info = next(
+                    (
+                        item
+                        for item in reviewer_data
+                        if isinstance(item, dict)
+                        and item.get("id") == reviewer_gitlab_id
+                    ),
+                    None,
+                ) if isinstance(reviewer_data, list) else None
+                if isinstance(reviewer_info, dict):
+                    username = reviewer_info.get("username")
+                    if isinstance(username, str) and username:
+                        assigned_user = User(
+                            gitlab_id=reviewer_gitlab_id,
+                            username=username,
+                            display_name=(
+                                reviewer_info.get("name")
+                                if isinstance(reviewer_info.get("name"), str)
+                                else None
+                            ),
+                        )
+                        self.session.add(assigned_user)
+                        self.session.flush()
+            if assigned_user is None:
+                raise ResourceNotFoundError("GitLab reviewer user")
             if (
-                assigned_user
-                and not any(
+                not any(
                     reviewer_entry.assigned_user_id == assigned_user.user_id
                     for reviewer_entry in task.reviewers
                 )
@@ -222,20 +265,20 @@ class ReviewTaskQuerier:
             if not isinstance(reviewer_user_id, UUID):
                 continue
             assigned_user = self.session.get(User, reviewer_user_id)
-            if (
-                assigned_user
-                and not any(
-                    reviewer_entry.assigned_user_id == assigned_user.user_id
-                    for reviewer_entry in task.reviewers
-                )
+            if assigned_user is None:
+                raise ResourceNotFoundError("Reviewer user")
+            if any(
+                reviewer_entry.assigned_user_id == assigned_user.user_id
+                for reviewer_entry in task.reviewers
             ):
-                task.reviewers.append(
-                    TaskReviewer(
-                        assigned_user=assigned_user,
-                        status=ReviewStatus.WAITING_FOR_REVIEW,
-                        source=source,
-                    )
+                continue
+            task.reviewers.append(
+                TaskReviewer(
+                    assigned_user=assigned_user,
+                    status=ReviewStatus.WAITING_FOR_REVIEW,
+                    source=source,
                 )
+            )
 
     def ensure_visible(self, task_id: UUID, user_id: UUID) -> ReviewTask:
         task = self.get(task_id)
@@ -259,9 +302,45 @@ class ReviewTaskQuerier:
         self, task_id: UUID, user_id: UUID, values: dict[str, object]
     ) -> ReviewTask:
         task = self.ensure_visible(task_id, user_id)
+        reviewer_user_ids = values.pop("reviewer_user_ids", None)
         updated_task = self.dal.update(task, values)
+        if reviewer_user_ids is not None:
+            requested_reviewer_ids = {
+                reviewer_id
+                for reviewer_id in reviewer_user_ids
+                if isinstance(reviewer_id, UUID)
+            }
+            task.reviewers[:] = [
+                reviewer
+                for reviewer in task.reviewers
+                if reviewer.assigned_user_id in requested_reviewer_ids
+            ]
+            self._add_reviewers(
+                task,
+                list(requested_reviewer_ids),
+                source="MANUAL",
+            )
+        if values.get("status") == ReviewStatus.CLOSED.value:
+            for reviewer in task.reviewers:
+                reviewer.status = ReviewStatus.CLOSED
+        elif reviewer_user_ids is not None:
+            self._recalculate_status(task)
         self.session.commit()
         return updated_task
+
+    @staticmethod
+    def _recalculate_status(task: ReviewTask) -> None:
+        reviewer_statuses = [reviewer.status for reviewer in task.reviewers]
+        if any(status == ReviewStatus.CHANGES_NEEDED for status in reviewer_statuses):
+            task.status = ReviewStatus.CHANGES_NEEDED.value
+        elif any(status == ReviewStatus.IN_REVIEW for status in reviewer_statuses):
+            task.status = ReviewStatus.IN_REVIEW.value
+        elif reviewer_statuses and all(
+            status == ReviewStatus.APPROVED for status in reviewer_statuses
+        ):
+            task.status = ReviewStatus.APPROVED.value
+        else:
+            task.status = ReviewStatus.WAITING_FOR_REVIEW.value
 
     def delete(self, task_id: UUID, user_id: UUID) -> None:
         task = self.ensure_visible(task_id, user_id)

@@ -40,12 +40,64 @@ class TaskReviewerQuerier:
         return reviewer
 
     def update(
-        self, reviewer_entry_id: UUID, values: dict[str, object]
+        self,
+        reviewer_entry_id: UUID,
+        values: dict[str, object],
     ) -> TaskReviewer:
         reviewer = self.get(reviewer_entry_id)
         updated_reviewer = self.dal.update(reviewer, values)
+        if "status" in values:
+            self._update_task_status(reviewer)
         self.session.commit()
         return updated_reviewer
+
+    def update_for_task(
+        self,
+        task_id: UUID,
+        user_id: UUID,
+        values: dict[str, object],
+    ) -> TaskReviewer:
+        reviewer = self.dal.get_for_task_and_user(task_id, user_id)
+        if reviewer is None:
+            raise ResourceNotFoundError("Reviewer")
+        return self.update(reviewer.reviewer_entry_id, values)
+
+    def update_for_assignee(
+        self,
+        task_id: UUID,
+        reviewer_entry_id: UUID,
+        user_id: UUID,
+        values: dict[str, object],
+    ) -> TaskReviewer:
+        reviewer = self.get(reviewer_entry_id)
+        if (
+            reviewer.task_id != task_id
+            or reviewer.task.author_user_id != user_id
+        ):
+            raise ResourceNotFoundError("Reviewer")
+        if (
+            values.get("status") == ReviewStatus.WAITING_FOR_REVIEW.value
+            and reviewer.task.status == ReviewStatus.CLOSED.value
+        ):
+            reviewer.task.status = ReviewStatus.WAITING_FOR_REVIEW.value
+        return self.update(reviewer_entry_id, values)
+
+    def _update_task_status(self, reviewer: TaskReviewer) -> None:
+        task = reviewer.task
+        if task.status == ReviewStatus.CLOSED.value:
+            return
+
+        reviewer_statuses = [entry.status for entry in task.reviewers]
+        if any(status == ReviewStatus.CHANGES_NEEDED for status in reviewer_statuses):
+            task.status = ReviewStatus.CHANGES_NEEDED.value
+        elif any(status == ReviewStatus.IN_REVIEW for status in reviewer_statuses):
+            task.status = ReviewStatus.IN_REVIEW.value
+        elif reviewer_statuses and all(
+            status == ReviewStatus.APPROVED for status in reviewer_statuses
+        ):
+            task.status = ReviewStatus.APPROVED.value
+        else:
+            task.status = ReviewStatus.WAITING_FOR_REVIEW.value
 
     def delete(self, reviewer_entry_id: UUID) -> None:
         reviewer = self.get(reviewer_entry_id)
@@ -55,7 +107,7 @@ class TaskReviewerQuerier:
     def count_status_as_reviewer(self, user_id: UUID) -> dict[str, int]:
         counts = {
             "WAITING_FOR_REVIEW": 0, 
-            "REVIEW": 0, 
+            "IN_REVIEW": 0, 
             "CHANGES_NEEDED": 0, 
             "APPROVED": 0, 
             "CLOSED": 0
@@ -73,7 +125,7 @@ class TaskReviewerQuerier:
     def count_status_as_assignee(self, user_id: UUID) -> dict[str, int]:
         counts = {
             "WAITING_FOR_REVIEW": 0, 
-            "REVIEW": 0, 
+            "IN_REVIEW": 0, 
             "CHANGES_NEEDED": 0, 
             "APPROVED": 0, 
             "CLOSED": 0

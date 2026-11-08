@@ -17,6 +17,8 @@ from app.core.time import JERUSALEM_TIMEZONE, humanize_status
 from app.schemas.task_reviewer import TaskReviewerResponse
 from app.schemas.user import UserResponse
 
+PriorityLevel = Literal["HIGHEST", "HIGH", "MEDIUM", "LOW", "LOWEST"]
+
 
 class ReviewTaskCreate(BaseModel):
     author_user_id: UUID
@@ -28,7 +30,7 @@ class ReviewTaskCreate(BaseModel):
     description: str | None = None
     reviewer_user_ids: list[UUID] = Field(default_factory=list)
     mr_state: str = "opened"
-    priority: str = "NORMAL"
+    priority: PriorityLevel = "MEDIUM"
     status: str = "WAITING_FOR_REVIEW"
     jira_ticket_url: str | None = None
 
@@ -39,15 +41,17 @@ class ReviewTaskFromGitLabCreate(BaseModel):
     description: str | None = None
     reviewer_user_ids: list[UUID] = Field(default_factory=list)
     reviewer_gitlab_ids: list[int] = Field(default_factory=list)
-    priority: str = "NORMAL"
+    priority: PriorityLevel = "MEDIUM"
     jira_ticket_url: str | None = None
 
 
 class ReviewTaskUpdate(BaseModel):
     mr_state: str | None = None
-    priority: str | None = None
+    priority: PriorityLevel | None = None
     status: str | None = None
+    description: str | None = None
     jira_ticket_url: str | None = None
+    reviewer_user_ids: list[UUID] | None = None
 
     @field_validator("mr_state", "priority", "status", mode="before")
     @classmethod
@@ -82,6 +86,7 @@ class ReviewTaskResponse(ReviewTaskCreate):
 
 
 class ReviewerTaskResponse(BaseModel):
+    task_id: UUID
     mr_title: str
     mr_web_url: str
     status: str

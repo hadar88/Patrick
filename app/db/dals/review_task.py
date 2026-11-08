@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import asc, desc, exists, select
+from sqlalchemy import asc, case, desc, exists, select
 
 from app.db.dals.base import BaseDAL
 from app.db.models import ReviewTask, TaskReviewer
@@ -10,11 +10,22 @@ from app.queriers.filter_operators import FILTER_OPERATORS
 
 class ReviewTaskDAL(BaseDAL[ReviewTask]):
     model = ReviewTask
+    _priority_sort = case(
+        {
+            "LOWEST": 1,
+            "LOW": 2,
+            "MEDIUM": 3,
+            "HIGH": 4,
+            "HIGHEST": 5,
+        },
+        value=ReviewTask.priority,
+        else_=0,
+    )
 
     _task_sort_columns = {
         "mr_title": ReviewTask.mr_title,
         "status": ReviewTask.status,
-        "priority": ReviewTask.priority,
+        "priority": _priority_sort,
         "created_at": ReviewTask.created_at,
     }
 
@@ -37,12 +48,17 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         sort_order: str = "desc",
         filters: dict[str, dict[str, object]] | None = None,
         mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[ReviewTask]:
         statement = select(ReviewTask).where(
             ReviewTask.author_user_id == author_user_id
         )
         if mr_state is not None:
             statement = statement.where(ReviewTask.mr_state == mr_state)
+        if task_status == "closed":
+            statement = statement.where(ReviewTask.status == "CLOSED")
+        elif task_status == "opened":
+            statement = statement.where(ReviewTask.status != "CLOSED")
         statement = self._apply_filters(statement, ReviewTask.status, filters)
         if sort_by is not None:
             sort_column = self._task_sort_columns[sort_by]
@@ -65,6 +81,7 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         sort_order: str = "desc",
         filters: dict[str, dict[str, object]] | None = None,
         mr_state: str | None = None,
+        task_status: str | None = None,
     ) -> list[ReviewTask]:
         reviewer_status = (
             select(TaskReviewer.status)
@@ -86,6 +103,10 @@ class ReviewTaskDAL(BaseDAL[ReviewTask]):
         )
         if mr_state is not None:
             statement = statement.where(ReviewTask.mr_state == mr_state)
+        if task_status == "closed":
+            statement = statement.where(ReviewTask.status == "CLOSED")
+        elif task_status == "opened":
+            statement = statement.where(ReviewTask.status != "CLOSED")
         statement = self._apply_filters(statement, reviewer_status, filters)
         if sort_by is not None:
             sort_column = sort_columns[sort_by]
