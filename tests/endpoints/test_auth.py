@@ -22,7 +22,12 @@ class FakeGitLabClient:
         return {"access_token": "access-token"}
 
     def current_user(self):
-        return {"id": 123, "username": "admin", "name": "Admin"}
+        return {
+            "id": 123,
+            "username": "admin",
+            "name": "Admin",
+            "avatar_url": "https://gitlab.example/uploads/admin.png",
+        }
 
 
 def test_gitlab_login_promotes_configured_admin(client, session, monkeypatch):
@@ -39,6 +44,7 @@ def test_gitlab_login_promotes_configured_admin(client, session, monkeypatch):
     assert callback_response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     created_user = session.query(User).one()
     assert created_user.is_admin is True
+    assert created_user.avatar_url == "https://gitlab.example/uploads/admin.png"
 
 
 def test_logout_clears_authentication_session(client, monkeypatch):

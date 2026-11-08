@@ -163,6 +163,7 @@ def gitlab_callback(
                 gitlab_user.get("username", gitlab_id)
             ),
             display_name=gitlab_user.get("name"),
+            avatar_url=gitlab_user.get("avatar_url"),
         )
 
         db.add(user)
@@ -174,6 +175,10 @@ def gitlab_callback(
         user.display_name = gitlab_user.get(
             "name",
             user.display_name,
+        )
+        user.avatar_url = gitlab_user.get(
+            "avatar_url",
+            user.avatar_url,
         )
 
     if (

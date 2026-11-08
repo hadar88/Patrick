@@ -36,6 +36,7 @@ class TaskReviewerResponse(TaskReviewerCreate):
     reviewer_entry_id: UUID
     username: str
     display_name: str | None = None
+    avatar_url: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -53,6 +54,7 @@ class TaskReviewerResponse(TaskReviewerCreate):
             "source": value.source,
             "username": assigned_user.username,
             "display_name": assigned_user.display_name,
+            "avatar_url": assigned_user.avatar_url,
         }
 
     @field_serializer("status")

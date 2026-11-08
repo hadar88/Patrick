@@ -7,11 +7,13 @@ class UserCreate(BaseModel):
     gitlab_id: int
     username: str
     display_name: str | None = None
+    avatar_url: str | None = None
 
 
 class UserUpdate(BaseModel):
     username: str | None = None
     display_name: str | None = None
+    avatar_url: str | None = None
 
     @field_validator("username", mode="before")
     @classmethod

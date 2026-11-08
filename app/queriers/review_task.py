@@ -232,6 +232,13 @@ class ReviewTaskQuerier:
                                 if isinstance(reviewer_info.get("name"), str)
                                 else None
                             ),
+                            avatar_url=(
+                                reviewer_info.get("avatar_url")
+                                if isinstance(
+                                    reviewer_info.get("avatar_url"), str
+                                )
+                                else None
+                            ),
                         )
                         self.session.add(assigned_user)
                         self.session.flush()
@@ -297,6 +304,51 @@ class ReviewTaskQuerier:
         if task is None:
             raise ResourceNotFoundError("Review task")
         return task
+
+    def sync_gitlab_reviewers(
+        self,
+        task_id: UUID,
+        user_id: UUID,
+        gitlab_data: dict[str, object],
+    ) -> list[User]:
+        task = self.ensure_visible(task_id, user_id)
+        reviewers = gitlab_data.get("reviewers")
+        if not isinstance(reviewers, list):
+            return []
+
+        users: list[User] = []
+        for reviewer in reviewers:
+            if not isinstance(reviewer, dict):
+                continue
+            gitlab_id = reviewer.get("id")
+            username = reviewer.get("username")
+            if (
+                not isinstance(gitlab_id, int)
+                or not isinstance(username, str)
+                or not username
+            ):
+                continue
+
+            user = (
+                self.session.query(User)
+                .filter(User.gitlab_id == gitlab_id)
+                .one_or_none()
+            )
+            if user is None:
+                user = User(gitlab_id=gitlab_id, username=username)
+                self.session.add(user)
+            else:
+                user.username = username
+            name = reviewer.get("name")
+            if isinstance(name, str):
+                user.display_name = name
+            avatar_url = reviewer.get("avatar_url")
+            if isinstance(avatar_url, str):
+                user.avatar_url = avatar_url
+            users.append(user)
+
+        self.session.commit()
+        return users
 
     def update(
         self, task_id: UUID, user_id: UUID, values: dict[str, object]

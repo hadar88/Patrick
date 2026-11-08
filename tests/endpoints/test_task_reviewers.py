@@ -5,6 +5,7 @@ def test_task_reviewer_crud_and_filter_routes(
     client, user_factory, task_factory, login_as
 ):
     author = user_factory()
+    author.avatar_url = "https://gitlab.example/uploads/alice.png"
     assigned_user = user_factory(gitlab_id=2, username="bob")
     task = task_factory(author=author)
     payload = {
@@ -40,6 +41,9 @@ def test_task_reviewer_crud_and_filter_routes(
     assert reviewer_rows[0]["priority"] == task.priority
     assert reviewer_rows[0]["jira_ticket_url"] is None
     assert reviewer_rows[0]["developer"]["user_id"] == str(author.user_id)
+    assert reviewer_rows[0]["developer"]["avatar_url"] == (
+        "https://gitlab.example/uploads/alice.png"
+    )
     filtered_reviewer_rows = client.post(
         "/api/review-tasks/my-reviews",
         json={"status": {"operator": "EQUALS", "values": ["WAITING_FOR_REVIEW"]}},

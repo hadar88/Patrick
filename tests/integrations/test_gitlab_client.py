@@ -78,9 +78,19 @@ def test_authored_merge_requests_uses_created_by_me_scope(monkeypatch):
                 "state": "opened",
                 "web_url": "https://gitlab.example/team/patrick/-/merge_requests/8",
                 "references": {"full": "team/patrick!8"},
-                "author": {"id": 1, "username": "alice", "name": "Alice"},
+                "author": {
+                    "id": 1,
+                    "username": "alice",
+                    "name": "Alice",
+                    "avatar_url": "https://gitlab.example/uploads/alice.png",
+                },
                 "reviewers": [
-                    {"id": 2, "username": "bob", "name": "Bob"},
+                    {
+                        "id": 2,
+                        "username": "bob",
+                        "name": "Bob",
+                        "avatar_url": "https://gitlab.example/uploads/bob.png",
+                    },
                 ],
             }]
         )
@@ -92,8 +102,18 @@ def test_authored_merge_requests_uses_created_by_me_scope(monkeypatch):
     assert result == [{
         "mr_link": "https://gitlab.example/team/patrick/-/merge_requests/8",
         "title": "Improve review flow",
-        "author": {"id": 1, "username": "alice", "name": "Alice"},
-        "reviewers": [{"id": 2, "username": "bob", "name": "Bob"}],
+        "author": {
+            "id": 1,
+            "username": "alice",
+            "name": "Alice",
+            "avatar_url": "https://gitlab.example/uploads/alice.png",
+        },
+        "reviewers": [{
+            "id": 2,
+            "username": "bob",
+            "name": "Bob",
+            "avatar_url": "https://gitlab.example/uploads/bob.png",
+        }],
         "repository": "team/patrick",
         "repository_url": "https://gitlab.example/team/patrick",
         "iid": 8,

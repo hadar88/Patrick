@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import status
 
 from app.core.time import JERUSALEM_TIMEZONE, now_in_jerusalem
-from app.db.models import GitLabConnection, TaskReviewer
+from app.db.models import GitLabConnection, TaskReviewer, User
 
 
 class FakeGitLabClient:
@@ -15,7 +15,12 @@ class FakeGitLabClient:
             "state": "opened",
             "web_url": "https://gitlab.example/team/patrick/-/merge_requests/8",
             "references": {"full": "team/patrick!8"},
-            "reviewers": [],
+            "reviewers": [{
+                "id": 40094048,
+                "username": "reviewer",
+                "name": "Alice",
+                "avatar_url": "https://gitlab.example/uploads/reviewer.png",
+            }],
         }
 
 
@@ -290,7 +295,6 @@ def test_create_review_task_from_gitlab(
     client, user_factory, login_as, session, monkeypatch
 ):
     author = user_factory()
-    reviewer = user_factory(gitlab_id=40094048, username="reviewer")
     login_as(author)
     session.add(GitLabConnection(user_id=author.user_id, access_token="token"))
     session.commit()
@@ -305,7 +309,7 @@ def test_create_review_task_from_gitlab(
             "project_id": 7,
             "merge_request_iid": 8,
             "description": "Please review the API changes",
-            "reviewer_gitlab_ids": [reviewer.gitlab_id],
+            "reviewer_gitlab_ids": [40094048],
         },
     )
 
@@ -316,14 +320,23 @@ def test_create_review_task_from_gitlab(
     )
     assert response.json()["repo_url"] == "https://gitlab.example/team/patrick"
     assert response.json()["author_user_id"] == str(author.user_id)
+    created_reviewer = (
+        session.query(User).filter(User.gitlab_id == 40094048).one()
+    )
     assert response.json()["reviewers"][0]["assigned_user_id"] == str(
-        reviewer.user_id
+        created_reviewer.user_id
     )
     assert response.json()["reviewers"][0]["username"] == "reviewer"
     assert response.json()["reviewers"][0]["display_name"] == "Alice"
+    assert response.json()["reviewers"][0]["avatar_url"] == (
+        "https://gitlab.example/uploads/reviewer.png"
+    )
+    assert created_reviewer.avatar_url == (
+        "https://gitlab.example/uploads/reviewer.png"
+    )
     task_reviewers = session.query(TaskReviewer).all()
     assert len(task_reviewers) == 1
-    assert task_reviewers[0].assigned_user_id == reviewer.user_id
+    assert task_reviewers[0].assigned_user_id == created_reviewer.user_id
 
 
 def test_task_creation_time_uses_jerusalem_timezone():
@@ -356,3 +369,42 @@ def test_create_review_task_from_gitlab_can_assign_author_as_reviewer(
     assert client.get(
         f"/api/task-reviewers/status-counts/reviewer/{author.user_id}"
     ).json()["WAITING_FOR_REVIEW"] == 1
+
+
+def test_task_gitlab_reviewers_refreshes_current_reviewers(
+    client, user_factory, task_factory, login_as, session, monkeypatch
+):
+    author = user_factory()
+    task = task_factory(author=author, repo_gitlab_id=7, gitlab_mr_id=8)
+    session.add(GitLabConnection(user_id=author.user_id, access_token="token"))
+    session.commit()
+    login_as(author)
+
+    class CurrentReviewersClient:
+        def merge_request(self, project_id, merge_request_iid):
+            return {
+                "reviewers": [{
+                    "id": 42,
+                    "username": "new-reviewer",
+                    "name": "New Reviewer",
+                    "avatar_url": "https://gitlab.example/new-reviewer.png",
+                }],
+            }
+
+    monkeypatch.setattr(
+        "app.endpoints.gitlab.GitLabClient.from_token",
+        lambda token: CurrentReviewersClient(),
+    )
+
+    response = client.get(
+        f"/api/review-tasks/{task.task_id}/gitlab-reviewers"
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    reviewer = response.json()[0]
+    assert reviewer["gitlab_id"] == 42
+    assert reviewer["username"] == "new-reviewer"
+    assert reviewer["avatar_url"] == "https://gitlab.example/new-reviewer.png"
+    assert session.query(User).filter(User.gitlab_id == 42).one().display_name == (
+        "New Reviewer"
+    )

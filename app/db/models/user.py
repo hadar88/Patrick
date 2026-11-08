@@ -13,6 +13,7 @@ class User(Base):
     gitlab_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String(255), nullable=False)
     display_name = Column(String(255), nullable=True)
+    avatar_url = Column(String(2048), nullable=True)
     is_admin = Column(Boolean, nullable=False, default=False, server_default="false")
 
     authored_tasks = relationship(

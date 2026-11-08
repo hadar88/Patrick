@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.models import GitLabConnection, User
 from app.db.session import get_db
 from app.endpoints.auth import get_current_user
+from app.endpoints.gitlab import get_gitlab_client
 from app.integrations.gitlab import GitLabClient
 from app.schemas.review_task import (
     ReviewTaskCreate,
@@ -17,6 +18,7 @@ from app.schemas.review_task import (
     ReviewerTaskResponse,
 )
 from app.queriers import ReviewTaskQuerier
+from app.schemas.user import UserResponse
 
 SortField = Literal["mr_title", "status", "priority", "created_at"]
 SortOrder = Literal["asc", "desc"]
@@ -156,6 +158,22 @@ def get_review_task_by_mr(
     if task.author_user_id != current_user.user_id:
         return ReviewTaskQuerier(db).ensure_visible(task.task_id, current_user.user_id)
     return task
+
+
+@router.get("/{task_id}/gitlab-reviewers", response_model=list[UserResponse])
+def get_current_gitlab_reviewers(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    gitlab: GitLabClient = Depends(get_gitlab_client),
+) -> list[UserResponse]:
+    task = ReviewTaskQuerier(db).ensure_visible(task_id, current_user.user_id)
+    merge_request = gitlab.merge_request(task.repo_gitlab_id, task.gitlab_mr_id)
+    return ReviewTaskQuerier(db).sync_gitlab_reviewers(
+        task.task_id,
+        current_user.user_id,
+        merge_request,
+    )
 
 
 @router.get("/{task_id}", response_model=ReviewTaskResponse)

@@ -203,11 +203,14 @@ class GitLabClient:
     def _format_user(user: object) -> dict[str, object]:
         if not isinstance(user, dict):
             return {}
-        return {
+        formatted_user = {
             "id": user.get("id"),
             "username": user.get("username"),
             "name": user.get("name"),
         }
+        if "avatar_url" in user:
+            formatted_user["avatar_url"] = user.get("avatar_url")
+        return formatted_user
 
     def merge_request(self, project_id: int, merge_request_iid: int) -> dict[str, object]:
         project = quote(str(project_id), safe="")
