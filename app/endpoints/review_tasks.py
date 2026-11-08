@@ -41,8 +41,8 @@ def list_review_tasks(
     )
 
 
-@router.post("/my-prs", response_model=list[ReviewTaskResponse])
-def filter_my_prs(
+@router.post("/my-merge-requests", response_model=list[ReviewTaskResponse])
+def filter_my_merge_requests(
     payload: ReviewTaskFilters,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=10, ge=1),
@@ -53,7 +53,7 @@ def filter_my_prs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ReviewTaskResponse]:
-    return ReviewTaskQuerier(db).list_my_prs(
+    return ReviewTaskQuerier(db).list_my_merge_requests(
         current_user.user_id,
         offset=offset,
         limit=limit,

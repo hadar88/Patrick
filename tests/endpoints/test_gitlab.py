@@ -11,7 +11,7 @@ class FakeGitLabClient:
 
     def authored_merge_requests(self, project_id=None):
         return [{
-            "pr_link": "https://gitlab.example/team/patrick/-/merge_requests/8",
+            "mr_link": "https://gitlab.example/team/patrick/-/merge_requests/8",
             "title": "Improve review flow",
             "author": {"id": 1, "username": "alice", "name": "Alice"},
             "reviewers": [],

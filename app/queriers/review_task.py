@@ -55,7 +55,7 @@ class ReviewTaskQuerier:
             task_status=task_status,
         )
 
-    def list_my_prs(
+    def list_my_merge_requests(
         self,
         user_id: UUID,
         *,

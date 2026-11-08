@@ -51,9 +51,9 @@ def test_review_task_crud_and_lookup_routes(client, user_factory, login_as):
     assert client.get(
         "/api/review-tasks", params={"author_user_id": author.user_id}
     ).json() == [task]
-    assert client.post("/api/review-tasks/my-prs", json={}).json() == [task]
+    assert client.post("/api/review-tasks/my-merge-requests", json={}).json() == [task]
     assert client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={},
         params={"offset": 1, "limit": 1},
     ).json() == []
@@ -103,7 +103,7 @@ def test_duplicate_review_task_returns_conflict(client, user_factory, login_as):
     assert response.json() == {"detail": "This review task already exists"}
 
 
-def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
+def test_my_merge_requests_supports_sorting_and_pagination(client, user_factory, login_as):
     author = user_factory()
     login_as(author)
 
@@ -126,7 +126,7 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
         assert response.status_code == status.HTTP_201_CREATED
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={},
         params={"sort_by": "mr_title", "sort_order": "asc", "limit": 1},
     )
@@ -134,28 +134,28 @@ def test_my_prs_supports_sorting_and_pagination(client, user_factory, login_as):
     assert [task["mr_title"] for task in response.json()] == ["Alpha change"]
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={},
         params={"sort_by": "priority", "sort_order": "desc"},
     )
     assert [task["priority"] for task in response.json()] == ["HIGH", "LOW"]
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={},
         params={"sort_by": "unsupported"},
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={},
         params={"sort_by": "title"},
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
-def test_my_prs_supports_equals_and_created_at_range_filters(
+def test_my_merge_requests_supports_equals_and_created_at_range_filters(
     client, user_factory, login_as
 ):
     author = user_factory()
@@ -175,13 +175,13 @@ def test_my_prs_supports_equals_and_created_at_range_filters(
     created_task = response.json()
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={"priority": {"operator": "EQUALS", "values": ["HIGH"]}},
     )
     assert [task["mr_title"] for task in response.json()] == ["Filtered task"]
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={
             "created_at": {
                 "operator": "RANGE",
@@ -219,7 +219,7 @@ def test_table_routes_filter_by_merge_request_state(
     assert [
         task["task_id"]
         for task in client.post(
-            "/api/review-tasks/my-prs",
+            "/api/review-tasks/my-merge-requests",
             params={"mr_state": "opened"},
             json={},
         ).json()
@@ -242,12 +242,12 @@ def test_table_routes_filter_by_merge_request_state(
     ] == [opened_task.mr_title]
 
 
-def test_my_prs_rejects_invalid_created_at_range(client, user_factory, login_as):
+def test_my_merge_requests_rejects_invalid_created_at_range(client, user_factory, login_as):
     author = user_factory()
     login_as(author)
 
     response = client.post(
-        "/api/review-tasks/my-prs",
+        "/api/review-tasks/my-merge-requests",
         json={
             "created_at": {
                 "operator": "RANGE",

@@ -90,7 +90,7 @@ def test_authored_merge_requests_uses_created_by_me_scope(monkeypatch):
     result = GitLabClient("https://gitlab.example", None).authored_merge_requests()
 
     assert result == [{
-        "pr_link": "https://gitlab.example/team/patrick/-/merge_requests/8",
+        "mr_link": "https://gitlab.example/team/patrick/-/merge_requests/8",
         "title": "Improve review flow",
         "author": {"id": 1, "username": "alice", "name": "Alice"},
         "reviewers": [{"id": 2, "username": "bob", "name": "Bob"}],

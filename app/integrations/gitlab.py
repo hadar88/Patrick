@@ -189,7 +189,7 @@ class GitLabClient:
         if isinstance(web_url, str):
             repository_url = web_url.split("/-/merge_requests/", 1)[0]
         return {
-            "pr_link": web_url,
+            "mr_link": web_url,
             "title": merge_request.get("title"),
             "author": author_data,
             "reviewers": reviewer_data,
